@@ -234,6 +234,7 @@ func (s *AdminService) deleteEntireAccount(user models.User) error {
 		accountTables := []interface{}{
 			&models.Invitation{},
 			&models.AccountCurrency{},
+			&models.TaskStatus{},
 			&models.Gender{},
 			&models.Pronoun{},
 			&models.AddressType{},
