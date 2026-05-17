@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-const API_BASE = 'http://localhost:8080/api';
+import { apiUrl } from './api-base-url';
 
 async function registerUser(page: import('@playwright/test').Page, email: string) {
   await page.goto('/register');
@@ -13,7 +12,7 @@ async function registerUser(page: import('@playwright/test').Page, email: string
 }
 
 async function registerAndGetToken(email: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/auth/register`, {
+  const res = await fetch(apiUrl('/auth/register'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -71,7 +70,7 @@ test.describe('OAuth Account Linking', () => {
   });
 
   test('OAuth link-register endpoint rejects invalid token', async () => {
-    const res = await fetch(`${API_BASE}/auth/oauth/link-register`, {
+    const res = await fetch(apiUrl('/auth/oauth/link-register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -86,7 +85,7 @@ test.describe('OAuth Account Linking', () => {
   });
 
   test('OAuth link endpoint requires authentication', async () => {
-    const res = await fetch(`${API_BASE}/auth/oauth/link`, {
+    const res = await fetch(apiUrl('/auth/oauth/link'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ link_token: 'some-token' }),
@@ -98,7 +97,7 @@ test.describe('OAuth Account Linking', () => {
     const email = `oauth-link-e2e-${Date.now()}@example.com`;
     const jwtToken = await registerAndGetToken(email);
 
-    const res = await fetch(`${API_BASE}/auth/oauth/link`, {
+    const res = await fetch(apiUrl('/auth/oauth/link'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

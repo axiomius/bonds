@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
+import { apiUrl } from './api-base-url';
 
 async function registerAndSetup(page: import('@playwright/test').Page, prefix: string) {
   const email = `${prefix}-${Date.now()}@example.com`;
@@ -86,7 +87,7 @@ test.describe('Avatar Display - Contact Detail', () => {
     const [, vid, cid] = match!;
 
     const token = await page.evaluate(() => localStorage.getItem('token'));
-    const resp = await page.request.get(`http://localhost:8080/api/vaults/${vid}/contacts/${cid}/avatar`, {
+    const resp = await page.request.get(apiUrl(`/vaults/${vid}/contacts/${cid}/avatar`), {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(resp.status()).toBe(200);
