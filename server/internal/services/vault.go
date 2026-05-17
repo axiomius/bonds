@@ -262,58 +262,106 @@ func deleteVaultCascade(tx *gorm.DB, vaultID string) error {
 
 	// Journal cascade: PostMetric → PostSection → PostTag → ContactPost → Post → SliceOfLife → JournalMetric → Journal
 	var journalIDs []uint
-	tx.Model(&models.Journal{}).Where("vault_id = ?", vaultID).Pluck("id", &journalIDs)
+	if err := tx.Model(&models.Journal{}).Where("vault_id = ?", vaultID).Pluck("id", &journalIDs).Error; err != nil {
+		return fmt.Errorf("pluck Journal ids: %w", err)
+	}
 	if len(journalIDs) > 0 {
 		var postIDs []uint
-		tx.Model(&models.Post{}).Where("journal_id IN ?", journalIDs).Pluck("id", &postIDs)
+		if err := tx.Model(&models.Post{}).Where("journal_id IN ?", journalIDs).Pluck("id", &postIDs).Error; err != nil {
+			return fmt.Errorf("pluck Post ids: %w", err)
+		}
 		if len(postIDs) > 0 {
-			tx.Where("post_id IN ?", postIDs).Delete(&models.PostMetric{})
-			tx.Where("post_id IN ?", postIDs).Delete(&models.PostSection{})
-			tx.Where("post_id IN ?", postIDs).Delete(&models.PostTag{})
-			tx.Where("post_id IN ?", postIDs).Delete(&models.ContactPost{})
-			tx.Where("id IN ?", postIDs).Delete(&models.Post{})
+			if err := tx.Where("post_id IN ?", postIDs).Delete(&models.PostMetric{}).Error; err != nil {
+				return fmt.Errorf("delete PostMetric: %w", err)
+			}
+			if err := tx.Where("post_id IN ?", postIDs).Delete(&models.PostSection{}).Error; err != nil {
+				return fmt.Errorf("delete PostSection: %w", err)
+			}
+			if err := tx.Where("post_id IN ?", postIDs).Delete(&models.PostTag{}).Error; err != nil {
+				return fmt.Errorf("delete PostTag: %w", err)
+			}
+			if err := tx.Where("post_id IN ?", postIDs).Delete(&models.ContactPost{}).Error; err != nil {
+				return fmt.Errorf("delete ContactPost by post_id: %w", err)
+			}
+			if err := tx.Where("id IN ?", postIDs).Delete(&models.Post{}).Error; err != nil {
+				return fmt.Errorf("delete Post: %w", err)
+			}
 		}
 
 		var journalMetricIDs []uint
-		tx.Model(&models.JournalMetric{}).Where("journal_id IN ?", journalIDs).Pluck("id", &journalMetricIDs)
+		if err := tx.Model(&models.JournalMetric{}).Where("journal_id IN ?", journalIDs).Pluck("id", &journalMetricIDs).Error; err != nil {
+			return fmt.Errorf("pluck JournalMetric ids: %w", err)
+		}
 		if len(journalMetricIDs) > 0 {
 			// PostMetric references JournalMetricID — already deleted above via postIDs
-			tx.Where("id IN ?", journalMetricIDs).Delete(&models.JournalMetric{})
+			if err := tx.Where("id IN ?", journalMetricIDs).Delete(&models.JournalMetric{}).Error; err != nil {
+				return fmt.Errorf("delete JournalMetric: %w", err)
+			}
 		}
 
-		tx.Where("journal_id IN ?", journalIDs).Delete(&models.SliceOfLife{})
-		tx.Where("id IN ?", journalIDs).Delete(&models.Journal{})
+		if err := tx.Where("journal_id IN ?", journalIDs).Delete(&models.SliceOfLife{}).Error; err != nil {
+			return fmt.Errorf("delete SliceOfLife: %w", err)
+		}
+		if err := tx.Where("id IN ?", journalIDs).Delete(&models.Journal{}).Error; err != nil {
+			return fmt.Errorf("delete Journal: %w", err)
+		}
 	}
 
 	// LifeEventCategory cascade: LifeEvent → LifeEventType → LifeEventCategory
 	var categoryIDs []uint
-	tx.Model(&models.LifeEventCategory{}).Where("vault_id = ?", vaultID).Pluck("id", &categoryIDs)
+	if err := tx.Model(&models.LifeEventCategory{}).Where("vault_id = ?", vaultID).Pluck("id", &categoryIDs).Error; err != nil {
+		return fmt.Errorf("pluck LifeEventCategory ids: %w", err)
+	}
 	if len(categoryIDs) > 0 {
 		var typeIDs []uint
-		tx.Model(&models.LifeEventType{}).Where("life_event_category_id IN ?", categoryIDs).Pluck("id", &typeIDs)
-		if len(typeIDs) > 0 {
-			tx.Where("life_event_type_id IN ?", typeIDs).Delete(&models.LifeEvent{})
-			tx.Where("id IN ?", typeIDs).Delete(&models.LifeEventType{})
+		if err := tx.Model(&models.LifeEventType{}).Where("life_event_category_id IN ?", categoryIDs).Pluck("id", &typeIDs).Error; err != nil {
+			return fmt.Errorf("pluck LifeEventType ids: %w", err)
 		}
-		tx.Where("id IN ?", categoryIDs).Delete(&models.LifeEventCategory{})
+		if len(typeIDs) > 0 {
+			if err := tx.Where("life_event_type_id IN ?", typeIDs).Delete(&models.LifeEvent{}).Error; err != nil {
+				return fmt.Errorf("delete LifeEvent by life_event_type_id: %w", err)
+			}
+			if err := tx.Where("id IN ?", typeIDs).Delete(&models.LifeEventType{}).Error; err != nil {
+				return fmt.Errorf("delete LifeEventType: %w", err)
+			}
+		}
+		if err := tx.Where("id IN ?", categoryIDs).Delete(&models.LifeEventCategory{}).Error; err != nil {
+			return fmt.Errorf("delete LifeEventCategory: %w", err)
+		}
 	}
 
 	// TimelineEvent cascade: LifeEvent (by timeline_event_id) → TimelineEventParticipant → TimelineEvent
 	var timelineIDs []uint
-	tx.Model(&models.TimelineEvent{}).Where("vault_id = ?", vaultID).Pluck("id", &timelineIDs)
+	if err := tx.Model(&models.TimelineEvent{}).Where("vault_id = ?", vaultID).Pluck("id", &timelineIDs).Error; err != nil {
+		return fmt.Errorf("pluck TimelineEvent ids: %w", err)
+	}
 	if len(timelineIDs) > 0 {
-		tx.Where("timeline_event_id IN ?", timelineIDs).Delete(&models.LifeEvent{})
-		tx.Where("timeline_event_id IN ?", timelineIDs).Delete(&models.TimelineEventParticipant{})
-		tx.Where("id IN ?", timelineIDs).Delete(&models.TimelineEvent{})
+		if err := tx.Where("timeline_event_id IN ?", timelineIDs).Delete(&models.LifeEvent{}).Error; err != nil {
+			return fmt.Errorf("delete LifeEvent by timeline_event_id: %w", err)
+		}
+		if err := tx.Where("timeline_event_id IN ?", timelineIDs).Delete(&models.TimelineEventParticipant{}).Error; err != nil {
+			return fmt.Errorf("delete TimelineEventParticipant: %w", err)
+		}
+		if err := tx.Where("id IN ?", timelineIDs).Delete(&models.TimelineEvent{}).Error; err != nil {
+			return fmt.Errorf("delete TimelineEvent: %w", err)
+		}
 	}
 
 	// AddressBookSubscription cascade: DavSyncLog + ContactSubscriptionState → AddressBookSubscription
 	var subIDs []string
-	tx.Model(&models.AddressBookSubscription{}).Where("vault_id = ?", vaultID).Pluck("id", &subIDs)
+	if err := tx.Model(&models.AddressBookSubscription{}).Where("vault_id = ?", vaultID).Pluck("id", &subIDs).Error; err != nil {
+		return fmt.Errorf("pluck AddressBookSubscription ids: %w", err)
+	}
 	if len(subIDs) > 0 {
-		tx.Where("address_book_subscription_id IN ?", subIDs).Delete(&models.DavSyncLog{})
-		tx.Where("address_book_subscription_id IN ?", subIDs).Delete(&models.ContactSubscriptionState{})
-		tx.Where("id IN ?", subIDs).Delete(&models.AddressBookSubscription{})
+		if err := tx.Where("address_book_subscription_id IN ?", subIDs).Delete(&models.DavSyncLog{}).Error; err != nil {
+			return fmt.Errorf("delete DavSyncLog by address_book_subscription_id: %w", err)
+		}
+		if err := tx.Where("address_book_subscription_id IN ?", subIDs).Delete(&models.ContactSubscriptionState{}).Error; err != nil {
+			return fmt.Errorf("delete ContactSubscriptionState by address_book_subscription_id: %w", err)
+		}
+		if err := tx.Where("id IN ?", subIDs).Delete(&models.AddressBookSubscription{}).Error; err != nil {
+			return fmt.Errorf("delete AddressBookSubscription: %w", err)
+		}
 	}
 
 	// --- Cross-vault FK cleanup ---
