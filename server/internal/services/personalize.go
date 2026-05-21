@@ -106,10 +106,18 @@ func (s *PersonalizeService) Create(accountID, entity string, req dto.Personaliz
 	}
 
 	now := time.Now()
-	result := s.db.Exec(
-		fmt.Sprintf("INSERT INTO %s (account_id, %s, %s, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", cfg.table, labelCol, nameCol),
-		accountID, val, val, now, now,
-	)
+	var result *gorm.DB
+	if labelCol == nameCol {
+		result = s.db.Exec(
+			fmt.Sprintf("INSERT INTO %s (account_id, %s, created_at, updated_at) VALUES (?, ?, ?, ?)", cfg.table, labelCol),
+			accountID, val, now, now,
+		)
+	} else {
+		result = s.db.Exec(
+			fmt.Sprintf("INSERT INTO %s (account_id, %s, %s, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", cfg.table, labelCol, nameCol),
+			accountID, val, val, now, now,
+		)
+	}
 	if result.Error != nil {
 		return nil, result.Error
 	}
