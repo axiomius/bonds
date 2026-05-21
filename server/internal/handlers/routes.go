@@ -98,6 +98,7 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, cfg *config.Config, version strin
 	davSyncService := services.NewDavSyncService(db, davClientService, vcardService)
 	davPushService := services.NewDavPushService(db, davClientService, vcardService)
 	monicaImportService := services.NewMonicaImportService(db, cfg.Storage.UploadDir)
+	csvImportService := services.NewCSVImportService(db)
 	adminService := services.NewAdminService(db, cfg.Storage.UploadDir)
 
 	patService := services.NewPersonalAccessTokenService(db)
@@ -207,6 +208,7 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, cfg *config.Config, version strin
 	oauthHandler := NewOAuthHandler(oauthService, systemSettingService, cfg.JWT.Secret)
 	vcardHandler := NewVCardHandler(vcardService)
 	monicaImportHandler := NewMonicaImportHandler(monicaImportService)
+	csvImportHandler := NewCSVImportHandler(csvImportService)
 	invitationHandler := NewInvitationHandler(invitationService)
 	contactLabelHandler := NewContactLabelHandler(contactLabelService)
 	contactReligionHandler := NewContactReligionHandler(contactReligionService)
@@ -764,4 +766,5 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, cfg *config.Config, version strin
 	vaultSettings.DELETE("/quickFactTemplates/:id", vaultSettingsHandler.DeleteQuickFactTemplate)
 
 	vaultSettings.POST("/import/monica", monicaImportHandler.Import)
+	vaultSettings.POST("/import/csv", csvImportHandler.Import)
 }

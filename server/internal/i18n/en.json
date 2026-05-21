@@ -422,5 +422,7 @@
   "seed.task_statuses.in_progress": "In progress",
   "seed.task_statuses.done": "Done",
   "seed.task_statuses.blocked": "Blocked",
-  "seed.task_statuses.cancelled": "Cancelled"
+  "seed.task_statuses.cancelled": "Cancelled",
+  "err.invalid_csv_mapping": "Invalid column mapping",
+  "err.failed_to_import_csv": "Failed to import CSV"
 }

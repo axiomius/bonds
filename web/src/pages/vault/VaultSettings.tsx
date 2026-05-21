@@ -863,6 +863,197 @@ export default function VaultSettings() {
   };
 
 
+  // ── CSV Import ──────────────────────────────────────────────────────────
+  const CSV_FIELDS: { key: string; label: string }[] = [
+    { key: "first_name",          label: t("vault_settings.csv_import.field_first_name") },
+    { key: "last_name",           label: t("vault_settings.csv_import.field_last_name") },
+    { key: "middle_name",         label: t("vault_settings.csv_import.field_middle_name") },
+    { key: "nickname",            label: t("vault_settings.csv_import.field_nickname") },
+    { key: "prefix",              label: t("vault_settings.csv_import.field_prefix") },
+    { key: "suffix",              label: t("vault_settings.csv_import.field_suffix") },
+    { key: "gender",              label: t("vault_settings.csv_import.field_gender") },
+    { key: "birthday",            label: t("vault_settings.csv_import.field_birthday") },
+    { key: "email",               label: t("vault_settings.csv_import.field_email") },
+    { key: "phone",               label: t("vault_settings.csv_import.field_phone") },
+    { key: "company",             label: t("vault_settings.csv_import.field_company") },
+    { key: "job_title",           label: t("vault_settings.csv_import.field_job_title") },
+    { key: "tags",                label: t("vault_settings.csv_import.field_tags") },
+    { key: "groups",              label: t("vault_settings.csv_import.field_groups") },
+    { key: "notes",               label: t("vault_settings.csv_import.field_notes") },
+    { key: "address_street",      label: t("vault_settings.csv_import.field_address_street") },
+    { key: "address_city",        label: t("vault_settings.csv_import.field_address_city") },
+    { key: "address_state",       label: t("vault_settings.csv_import.field_address_state") },
+    { key: "address_postal_code", label: t("vault_settings.csv_import.field_address_postal_code") },
+    { key: "address_country",     label: t("vault_settings.csv_import.field_address_country") },
+  ];
+
+  // Parse CSV header row in the browser (handles basic quoting).
+  function parseCSVHeaders(text: string): string[] {
+    const firstLine = text.split(/\r?\n/)[0] ?? "";
+    const headers: string[] = [];
+    let cur = "";
+    let inQuote = false;
+    for (let i = 0; i < firstLine.length; i++) {
+      const ch = firstLine[i];
+      if (ch === '"') { inQuote = !inQuote; }
+      else if (ch === "," && !inQuote) { headers.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    headers.push(cur.trim());
+    return headers;
+  }
+
+  // Auto-map columns: lowercase-normalise both sides and pick the first match.
+  function autoMap(headers: string[]): Record<string, string> {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const aliases: Record<string, string[]> = {
+      first_name:          ["firstname", "first", "givenname", "prenom"],
+      last_name:           ["lastname", "last", "surname", "familyname", "nom"],
+      middle_name:         ["middlename", "middle"],
+      nickname:            ["nickname", "alias", "pseudo"],
+      prefix:              ["prefix", "title", "salutation"],
+      suffix:              ["suffix"],
+      gender:              ["gender", "sexe", "genre"],
+      birthday:            ["birthday", "birthdate", "dob", "dateofbirth", "naissance"],
+      email:               ["email", "emailaddress", "mail", "courriel"],
+      phone:               ["phone", "phonenumber", "mobile", "telephone", "tel"],
+      company:             ["company", "organization", "organisation", "employer", "societe"],
+      job_title:           ["jobtitle", "job", "position", "title", "role", "fonction"],
+      tags:                ["tags", "labels", "categories"],
+      groups:              ["groups", "groupes"],
+      notes:               ["notes", "note", "comment", "comments", "remarks"],
+      address_street:      ["street", "address", "addressstreet", "line1", "rue"],
+      address_city:        ["city", "ville"],
+      address_state:       ["state", "province", "region"],
+      address_postal_code: ["postalcode", "zip", "zipcode", "postcode", "codepostal"],
+      address_country:     ["country", "pays"],
+    };
+    const mapping: Record<string, string> = {};
+    for (const [field, aliasList] of Object.entries(aliases)) {
+      const match = headers.find(h => aliasList.includes(norm(h)));
+      mapping[field] = match ?? "";
+    }
+    return mapping;
+  }
+
+  const CSVImportTab = () => {
+    const [step, setStep] = useState<"upload" | "map" | "done">("upload");
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+    const [mapping, setMapping] = useState<Record<string, string>>({});
+    const [importing, setImporting] = useState(false);
+    const [importResult, setImportResult] = useState<{ imported_contacts: number; skipped_count: number; errors: string[] } | null>(null);
+    const [importError, setImportError] = useState<string | null>(null);
+
+    const handleBeforeUpload = (file: File): boolean => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = (e.target?.result as string) ?? "";
+        const headers = parseCSVHeaders(text);
+        setCsvHeaders(headers);
+        setMapping(autoMap(headers));
+        setCsvFile(file);
+        setStep("map");
+      };
+      reader.readAsText(file);
+      return false;
+    };
+
+    const handleImport = async () => {
+      if (!csvFile) return;
+      setImporting(true);
+      setImportError(null);
+      try {
+        const form = new FormData();
+        form.append("file", csvFile);
+        form.append("mapping", JSON.stringify(mapping));
+        const token = localStorage.getItem("token");
+        const res = await fetch(`/api/vaults/${vaultId}/settings/import/csv`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message ?? t("vault_settings.csv_import.error"));
+        setImportResult(json.data);
+        setStep("done");
+      } catch (err: unknown) {
+        setImportError(err instanceof Error ? err.message : t("vault_settings.csv_import.error"));
+      } finally {
+        setImporting(false);
+      }
+    };
+
+    const reset = () => { setCsvFile(null); setCsvHeaders([]); setMapping({}); setImportResult(null); setImportError(null); setStep("upload"); };
+
+    return (
+      <Space direction="vertical" style={{ width: "100%" }} size="large">
+        <Title level={4} style={{ margin: 0 }}>{t("vault_settings.csv_import.title")}</Title>
+        <Text type="secondary">{t("vault_settings.csv_import.description")}</Text>
+
+        {step === "upload" && (
+          <Upload.Dragger accept=".csv" showUploadList={false} beforeUpload={handleBeforeUpload} multiple={false}>
+            <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+            <p className="ant-upload-text">{t("vault_settings.csv_import.upload_hint")}</p>
+            <p className="ant-upload-hint">{t("vault_settings.csv_import.csv_only")}</p>
+          </Upload.Dragger>
+        )}
+
+        {step === "map" && (
+          <Space direction="vertical" style={{ width: "100%" }} size="middle">
+            <Text strong>{csvFile?.name}</Text>
+            <Text type="secondary">{t("vault_settings.csv_import.company_note")}</Text>
+            <Text type="secondary">{t("vault_settings.csv_import.groups_note")}</Text>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {CSV_FIELDS.map(({ key, label }) => (
+                <div key={key} style={{ display: "contents" }}>
+                  <Text style={{ alignSelf: "center" }}>{label}</Text>
+                  <Select
+                    style={{ width: "100%" }}
+                    value={mapping[key] ?? ""}
+                    onChange={(v) => setMapping((prev) => ({ ...prev, [key]: v }))}
+                  >
+                    <Option value="">{t("vault_settings.csv_import.not_mapped")}</Option>
+                    {csvHeaders.map((h) => <Option key={h} value={h}>{h}</Option>)}
+                  </Select>
+                </div>
+              ))}
+            </div>
+            {importError && <Alert type="error" message={importError} showIcon />}
+            <Space>
+              <Button onClick={reset}>← {t("vault_settings.csv_import.step_upload")}</Button>
+              <Button type="primary" onClick={handleImport} loading={importing}>
+                {t("vault_settings.csv_import.import_button")}
+              </Button>
+            </Space>
+          </Space>
+        )}
+
+        {step === "done" && importResult && (
+          <Space direction="vertical" style={{ width: "100%" }} size="middle">
+            <Alert
+              type="success"
+              message={t("vault_settings.csv_import.success")}
+              description={
+                <Space direction="vertical" size="small">
+                  <Text>{t("vault_settings.csv_import.contacts_imported")}: {importResult.imported_contacts}</Text>
+                  {importResult.skipped_count > 0 && (
+                    <Text type="warning">{t("vault_settings.csv_import.skipped")}: {importResult.skipped_count}</Text>
+                  )}
+                  {importResult.errors?.length > 0 && (
+                    <Text type="danger">{t("vault_settings.csv_import.errors")}: {importResult.errors.slice(0, 5).join("; ")}</Text>
+                  )}
+                </Space>
+              }
+              showIcon
+            />
+            <Button onClick={reset}>← {t("vault_settings.csv_import.step_upload")}</Button>
+          </Space>
+        )}
+      </Space>
+    );
+  };
+
   const MonicaImportTab = () => {
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState<GithubComNaibaBondsInternalDtoMonicaImportResponse | null>(null);
@@ -1004,6 +1195,7 @@ export default function VaultSettings() {
         title={t("vault_settings.quick_facts")}
         positionEntityType="quickFactTemplates"
     /> },
+    { key: "csv_import", label: t("vault_settings.csv_import.tab_label"), children: <CSVImportTab /> },
     { key: "import", label: t("vault_settings.monica_import.tab_label"), children: <MonicaImportTab /> },
   ];
 
