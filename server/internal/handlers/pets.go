@@ -45,6 +45,29 @@ func (h *PetHandler) List(c echo.Context) error {
 	return response.OK(c, pets)
 }
 
+// ListCategories godoc
+//
+//	@Summary		List pet categories
+//	@Description	Return pet categories for the current account
+//	@Tags			pets
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200			{object}	response.APIResponse{data=[]dto.PetCategoryResponse}
+//	@Failure		401			{object}	response.APIResponse
+//	@Failure		500			{object}	response.APIResponse
+//	@Router			/pet-categories [get]
+func (h *PetHandler) ListCategories(c echo.Context) error {
+	accountID, ok := c.Get("account_id").(string)
+	if !ok || accountID == "" {
+		return response.InternalError(c, "err.failed_to_list_pet_categories")
+	}
+	categories, err := h.petService.ListCategories(accountID)
+	if err != nil {
+		return response.InternalError(c, "err.failed_to_list_pet_categories")
+	}
+	return response.OK(c, categories)
+}
+
 // Create godoc
 //
 //	@Summary		Create a pet
@@ -79,6 +102,9 @@ func (h *PetHandler) Create(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, services.ErrContactNotFound) {
 			return response.NotFound(c, "err.contact_not_found")
+		}
+		if errors.Is(err, services.ErrPetCategoryNotFound) {
+			return response.NotFound(c, "err.pet_category_not_found")
 		}
 		return response.InternalError(c, "err.failed_to_create_pet")
 	}
@@ -124,6 +150,9 @@ func (h *PetHandler) Update(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, services.ErrContactNotFound) {
 			return response.NotFound(c, "err.contact_not_found")
+		}
+		if errors.Is(err, services.ErrPetCategoryNotFound) {
+			return response.NotFound(c, "err.pet_category_not_found")
 		}
 		if errors.Is(err, services.ErrPetNotFound) {
 			return response.NotFound(c, "err.pet_not_found")

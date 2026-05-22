@@ -159,6 +159,18 @@ func TestNonAdminCannotAccessPersonalize(t *testing.T) {
 	}
 }
 
+func TestAuthenticatedUserCanAccessPetCategories(t *testing.T) {
+	ts := setupTestServer(t)
+	_, auth := ts.registerTestUser(t, "pet-categories-user@example.com")
+	user2 := createSecondUser(t, ts, auth.User.AccountID, "pet-categories-user2@example.com", false)
+	token := generateJWT(user2.ID, user2.AccountID, user2.Email, false, false)
+
+	rec := ts.doRequest(http.MethodGet, "/api/pet-categories", "", token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for authenticated user pet categories, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestNonAdminCannotAccessInvitations(t *testing.T) {
 	ts := setupTestServer(t)
 

@@ -714,6 +714,7 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, cfg *config.Config, version strin
 	settingsGroup.GET("/storage", storageInfoHandler.Get)
 
 	protected.GET("/currencies", currencyHandler.List)
+	protected.GET("/pet-categories", petHandler.ListCategories)
 
 	vaultSettings := vaultScoped.Group("/settings", VaultPermissionMiddleware(vaultService, models.PermissionManager))
 	vaultSettings.GET("", vaultSettingsHandler.Get)
