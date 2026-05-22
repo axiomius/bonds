@@ -19,7 +19,7 @@ import { api } from "@/api";
 import type { UserPreferences, APIError } from "@/api";
 import { formatContactName } from "@/utils/nameFormat";
 import type { ContactNameFields } from "@/utils/nameFormat";
-import { SUPPORTED_LANGUAGES } from "@/i18n";
+import i18n, { SUPPORTED_LANGUAGES, normalizeLanguageCode } from "@/i18n";
 
 const { Title, Text } = Typography;
 
@@ -103,8 +103,17 @@ export default function Preferences() {
   const updateMutation = useMutation({
     mutationFn: (values: Partial<UserPreferences>) =>
       api.preferences.preferencesUpdate(values),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["settings", "preferences"] });
+      // Apply the locale change immediately so the UI doesn't lag a reload
+      // behind the saved preference. Without this the user changes
+      // language → save → nothing visible happens until next page load.
+      if (variables.locale) {
+        const desired = normalizeLanguageCode(variables.locale);
+        if (i18n.language !== desired) {
+          void i18n.changeLanguage(desired);
+        }
+      }
       message.success(t("settings.preferences.saved"));
     },
     onError: (e: APIError) => message.error(e.message),

@@ -43,11 +43,15 @@ import SearchBar from "@/components/SearchBar";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/api";
+import { usePreferencesSync } from "@/hooks/usePreferencesSync";
 
 const { Header, Content } = AntLayout;
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  // Apply the user's saved UI language to i18next so reloading the page
+  // doesn't drop you back into browser-detected English.
+  usePreferencesSync();
   const navigate = useNavigate();
   const location = useLocation();
   const { id: vaultId } = useParams();
