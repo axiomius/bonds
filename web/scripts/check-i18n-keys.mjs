@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Checks that en.json and zh.json have exactly the same set of keys.
- * Exits with code 1 if any keys are missing from either file.
+ * Cross-checks that en.json, zh.json, and es.json all expose the same key set.
+ * Exits with code 1 if any locale is missing or has extra keys compared to en.
  *
  * Usage: node scripts/check-i18n-keys.mjs
  */
@@ -27,31 +27,40 @@ function flattenKeys(obj, prefix = '') {
   return keys;
 }
 
-const en = JSON.parse(readFileSync(join(localesDir, 'en.json'), 'utf-8'));
-const zh = JSON.parse(readFileSync(join(localesDir, 'zh.json'), 'utf-8'));
+// Add or remove from this list when adding a locale bundle. SUPPORTED_LANGUAGES
+// in web/src/i18n.ts is the user-facing source of truth — keep these in sync.
+const locales = ['en', 'zh', 'es'];
 
-const enKeys = new Set(flattenKeys(en));
-const zhKeys = new Set(flattenKeys(zh));
-
-const missingInZh = [...enKeys].filter((k) => !zhKeys.has(k)).sort();
-const missingInEn = [...zhKeys].filter((k) => !enKeys.has(k)).sort();
-
-let failed = false;
-
-if (missingInZh.length > 0) {
-  console.error(`❌ ${missingInZh.length} key(s) in en.json but missing in zh.json:`);
-  missingInZh.forEach((k) => console.error(`  - ${k}`));
-  failed = true;
+const flatByLocale = {};
+for (const locale of locales) {
+  const obj = JSON.parse(readFileSync(join(localesDir, `${locale}.json`), 'utf-8'));
+  flatByLocale[locale] = new Set(flattenKeys(obj));
 }
 
-if (missingInEn.length > 0) {
-  console.error(`❌ ${missingInEn.length} key(s) in zh.json but missing in en.json:`);
-  missingInEn.forEach((k) => console.error(`  - ${k}`));
-  failed = true;
+const en = flatByLocale.en;
+let failed = false;
+
+for (const locale of locales) {
+  if (locale === 'en') continue;
+  const target = flatByLocale[locale];
+  const missing = [...en].filter((k) => !target.has(k)).sort();
+  const extra = [...target].filter((k) => !en.has(k)).sort();
+  if (missing.length > 0) {
+    console.error(`❌ ${missing.length} key(s) in en.json but missing in ${locale}.json:`);
+    missing.forEach((k) => console.error(`  - ${k}`));
+    failed = true;
+  }
+  if (extra.length > 0) {
+    console.error(`❌ ${extra.length} key(s) in ${locale}.json but missing in en.json:`);
+    extra.forEach((k) => console.error(`  - ${k}`));
+    failed = true;
+  }
 }
 
 if (failed) {
   process.exit(1);
 } else {
-  console.log(`✅ i18n keys consistent: ${enKeys.size} keys in both en.json and zh.json`);
+  console.log(
+    `✅ i18n keys consistent across ${locales.join(', ')}: ${en.size} keys each`,
+  );
 }
