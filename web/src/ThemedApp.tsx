@@ -1,6 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App as AntApp, ConfigProvider, theme as antTheme } from "antd";
+import { useTranslation } from "react-i18next";
+import enUS from "antd/locale/en_US";
+import zhCN from "antd/locale/zh_CN";
+import esES from "antd/locale/es_ES";
+import type { Locale } from "antd/lib/locale";
 import { useTheme } from "@/stores/theme";
+import { normalizeLanguageCode } from "@/i18n";
 import App from "./App.tsx";
 
 const queryClient = new QueryClient({
@@ -12,11 +18,24 @@ const queryClient = new QueryClient({
   },
 });
 
+// AntD ships its own locale bundles for DatePicker month names, Popconfirm
+// button labels, Pagination, Table empty state, etc. Without passing one to
+// ConfigProvider those strings stay English even when react-i18next is
+// running in zh/es. Keep this map keyed on the same codes as SUPPORTED_LANGUAGES.
+const ANTD_LOCALES: Record<string, Locale> = {
+  en: enUS,
+  zh: zhCN,
+  es: esES,
+};
+
 export default function ThemedApp() {
   const { resolvedTheme } = useTheme();
+  const { i18n } = useTranslation();
+  const antdLocale = ANTD_LOCALES[normalizeLanguageCode(i18n.language)] ?? enUS;
 
   return (
     <ConfigProvider
+      locale={antdLocale}
       theme={{
         algorithm:
           resolvedTheme === "dark"
