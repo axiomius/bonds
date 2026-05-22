@@ -33,6 +33,8 @@ Monica is a beloved open-source personal CRM with 24k+ stars. But as a side proj
 - **Full-text Search** — Bleve-powered CJK-aware search across contacts and notes
 - **CardDAV / CalDAV** — Sync contacts and calendars with Apple, Thunderbird, and other DAV clients
 - **vCard Import/Export** — Bulk import `.vcf` files, export individual or all contacts
+- **CSV Import** — Import contacts from a CSV file with a user-defined column mapping (name, email, phone, birthday, address, tags, groups, notes)
+- **Monica Import** — Migrate contacts directly from a Monica instance via API
 - **File Upload** — Photos and documents attached to contacts, with generated initials avatars
 - **Two-Factor Auth (TOTP)** — TOTP-based 2FA with recovery codes
 - **WebAuthn / FIDO2** — Passkey login (hardware keys, biometrics)
