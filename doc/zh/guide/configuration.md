@@ -1,6 +1,6 @@
 # 配置
 
-Bonds 采用混合配置模式：**基础设施设置**通过环境变量配置，**应用设置**通过 Web 管理面板管理。
+Bonds 采用混合配置模式：**基础设施设置**通过环境变量配置，**应用设置**通过 Web 管理面板安全地进行管理。
 
 ## 环境变量
 
@@ -33,7 +33,7 @@ cp server/.env.example server/.env
 
 ### 数据库连接
 
-**SQLite**（默认 — 零配置）：
+**SQLite**（默认，零配置）：
 ```bash
 DB_DRIVER=sqlite
 DB_DSN=bonds.db
@@ -49,15 +49,18 @@ DB_DSN="host=localhost port=5432 user=bonds password=secret dbname=bonds sslmode
 
 大部分应用设置通过 **管理面板** 配置，仅管理员可访问：
 
-- **SMTP** — 邮件服务器设置，用于发送通知和邀请
-- **OAuth** — GitHub 和 Google OAuth 客户端凭证
-- **OIDC** — OpenID Connect 提供商，用于企业 SSO（Authentik、Keycloak 等）
-- **WebAuthn** — 通行密钥认证的 Relying Party 配置
-- **Telegram** — Bot Token，用于 Telegram 通知
-- **地理编码** — 服务提供商和 API Key
-- **公告** — 全局公告横幅文字
-- **备份** — Cron 调度、保留天数
- **Swagger** — 独立于调试模式启用/禁用 API 文档界面
+- **常规**：应用名称、公开 URL、公告横幅。
+- **认证**：密码登录开关、注册开关。
+- **JWT**：令牌过期时间、刷新窗口。
+- **SMTP**：邮件服务器设置，用于发送通知和邀请。
+- **OAuth**：GitHub 和 Google OAuth 客户端凭证。
+- **OIDC**：OpenID Connect 提供商，用于企业 SSO（Authentik、Keycloak 等）。
+- **WebAuthn**：通行密钥认证的 Relying Party 配置。
+- **Telegram**：Bot Token，用于 Telegram 通知。
+- **地理编码**：服务提供商和 API Key。
+- **存储**：最大上传文件大小限制（在 Web UI 中配置，不再使用环境变量限制）。
+- **备份**：Cron 调度、保留天数。
+- **Swagger**：独立于调试模式启用或禁用 API 文档界面。
 
 ::: tip 从环境变量迁移
 首次启动时，Bonds 会从环境变量中读取这些设置作为初始值写入数据库。之后所有修改都通过管理面板进行。环境变量仅作为初始种子值使用。
@@ -77,7 +80,7 @@ SETTINGS_ENC_KEY="$(openssl rand -hex 32)"
 行为：
 
 - 密钥**不会写入数据库**，因此被盗的 DB 备份无法独自恢复明文。
-- 加密行使用 `enc:v1:` 前缀标记 — 已加密行会被识别并跳过重复加密。
+- 加密行使用 `enc:v1:` 前缀标记。已加密行会被识别并跳过重复加密。
 - 启动时会自动把白名单内的明文行**迁移**为密文（幂等，可重复执行）。
 - 留空保留旧的明文存储行为，单实例部署不会被强制迁移。
 - Admin **GET /api/admin/settings** 始终把敏感键脱敏为 `***`。**PUT** 时如果传入 `***` 表示"保留原值"，UI 可以安全地修改非敏感字段而不会清空密钥。
@@ -95,13 +98,13 @@ SETTINGS_ENC_KEY="$(openssl rand -hex 32)"
 
 ## 生产环境清单
 
-1. **设置 `JWT_SECRET`** — 使用强随机字符串（32+ 字符）
-2. **设置 `SETTINGS_ENC_KEY`** — 生产环境推荐启用，对 SMTP/OAuth/地理编码凭证做静态加密
-3. **设置 `APP_ENV=production`** — 禁用调试功能
-4. **设置 `APP_URL`** — 你的公开 URL（用于邮件链接和 OAuth 回调）
-5. **配置 SMTP** — 邮件通知和邀请功能必需
-6. **使用 HTTPS** — WebAuthn 必需，所有部署均推荐
-7. **配置备份** — 在管理面板中设置自动备份
+1. **设置 `JWT_SECRET`**：使用强随机字符串（32+ 字符）。
+2. **设置 `SETTINGS_ENC_KEY`**：生产环境推荐启用，对 SMTP/OAuth/地理编码凭证做静态加密。
+3. **设置 `APP_ENV=production`**：禁用调试功能。
+4. **设置 `APP_URL`**：你的公开 URL，用于邮件链接和 OAuth 回调。
+5. **配置 SMTP**：邮件通知和邀请功能必需。
+6. **使用 HTTPS**：WebAuthn 必需，所有部署均推荐。
+7. **配置备份**：在管理面板中设置自动备份。
 
 ## Docker 环境示例
 
