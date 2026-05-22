@@ -223,6 +223,12 @@
   "err.entity_not_found": "实体未找到",
   "err.failed_to_update_entity": "更新实体失败",
   "err.failed_to_delete_entity": "删除实体失败",
+  "err.invalid_csv_mapping": "列映射无效",
+  "err.failed_to_import_csv": "CSV 导入失败",
+  "err.file_required": "请上传文件",
+  "err.file_too_large": "文件超过 10 MB 大小限制",
+  "err.invalid_file_type": "仅接受 CSV 文件",
+  "err.failed_to_read_file": "无法读取上传的文件",
 
   "seed.genders.male": "男",
   "seed.genders.female": "女",
