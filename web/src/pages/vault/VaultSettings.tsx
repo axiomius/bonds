@@ -1035,10 +1035,10 @@ export default function VaultSettings() {
               description={
                 <Space direction="vertical" size="small">
                   <Text>{t("vault_settings.csv_import.contacts_imported")}: {importResult.imported_contacts}</Text>
-                  {importResult.skipped_count > 0 && (
+                  {(importResult.skipped_count ?? 0) > 0 && (
                     <Text type="warning">{t("vault_settings.csv_import.skipped")}: {importResult.skipped_count}</Text>
                   )}
-                  {importResult.errors?.length > 0 && (
+                  {importResult.errors && importResult.errors.length > 0 && (
                     <Text type="danger">{t("vault_settings.csv_import.errors")}: {importResult.errors.slice(0, 5).join("; ")}</Text>
                   )}
                 </Space>
