@@ -8,9 +8,9 @@ If you're migrating from Monica CRM (version 4.x), Bonds can import your complet
 
 ### How to Import
 
-1. In Monica, go to **Settings > Export** and download your JSON export file
-2. In Bonds, navigate to **Vault Settings > Monica Import** tab
-3. Upload the JSON file — all your data will be imported automatically
+1. In Monica, go to **Settings, Export** and download your JSON export file.
+2. In Bonds, navigate to **Vault Settings, Monica Import** tab.
+3. Upload the JSON file. All your data will be imported automatically.
 
 ### What Gets Imported
 
@@ -34,9 +34,15 @@ If you're migrating from Monica CRM (version 4.x), Bonds can import your complet
 | Activities | Notes (degraded with type prefix) |
 | Conversations | Notes (formatted chat log) |
 
+### Specialized Monica Import Handling
+
+Bonds implements robust fallback strategies to handle differences between the Monica data structure and Bonds:
+- **Gender Fallback**: Monica exports genders as simple text fields (e.g., custom or non-English names like "female", "male", "other", or entirely custom labels). If an imported gender does not match the standard options in the Bonds database, the importer gracefully maps it to a custom option, falls back to default gender records, or creates a matching custom entry, ensuring the import finishes successfully.
+- **Pet Categories**: Monica's pet records are mapped to Bonds pet objects. The importer handles categories by mapping them to appropriate default pet categories (like dog, cat, bird, etc.) and falls back to a default type if the exact category cannot be resolved.
+
 ### Duplicate Detection
 
-Re-importing the same file is safe — contacts are matched by their original Monica UUID and skipped if already imported.
+Re-importing the same file is safe. Contacts are matched by their original Monica UUID and skipped if already imported.
 
 ### Permissions
 
@@ -44,9 +50,9 @@ Only Vault **Managers** can perform imports.
 
 ### Monica v5 Users
 
-Monica v5 removed JSON export — only VCard is available. If you're on v5:
-- Use VCard import for contact basics (name, phone, email, address)
-- For full migration: export JSON from 4.x **before** upgrading to v5
+Monica v5 removed JSON export. Only VCard is available. If you're on v5:
+- Use VCard import for contact basics (name, phone, email, address).
+- For full migration: export JSON from 4.x **before** upgrading to v5.
 
 ## vCard Export
 
