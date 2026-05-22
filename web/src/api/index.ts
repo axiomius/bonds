@@ -270,6 +270,7 @@ export type { GithubComNaibaBondsInternalDtoAddressResponse as Address } from ".
 export type { GithubComNaibaBondsInternalDtoContactInformationResponse as ContactInfo } from "./generated/data-contracts";
 export type { GithubComNaibaBondsInternalDtoLoanResponse as Loan } from "./generated/data-contracts";
 export type { GithubComNaibaBondsInternalDtoPetResponse as Pet } from "./generated/data-contracts";
+export type { GithubComNaibaBondsInternalDtoPetCategoryResponse as PetCategory } from "./generated/data-contracts";
 export type { GithubComNaibaBondsInternalDtoRelationshipResponse as Relationship } from "./generated/data-contracts";
 export type { GithubComNaibaBondsInternalDtoRelationshipTypeWithGroupResponse } from "./generated/data-contracts";
 export type { GithubComNaibaBondsInternalDtoCrossVaultContactItem } from "./generated/data-contracts";
