@@ -4,6 +4,7 @@ import {
   List,
   Button,
   Input,
+  Select,
   Space,
   Popconfirm,
   App,
@@ -14,7 +15,7 @@ import {
 import { PlusOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api";
-import type { Pet, APIError } from "@/api";
+import type { Pet, PetCategory, APIError } from "@/api";
 import { useTranslation } from "react-i18next";
 
 export default function PetsModule({
@@ -27,7 +28,7 @@ export default function PetsModule({
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const { t } = useTranslation();
@@ -42,9 +43,18 @@ export default function PetsModule({
     },
   });
 
+  const { data: petCategories = [], isLoading: isCategoriesLoading } = useQuery<PetCategory[]>({
+    queryKey: ["pet-categories"],
+    queryFn: async (): Promise<PetCategory[]> => {
+      const res = await api.pets.petCategoriesList();
+      return res.data ?? [];
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: () => {
-      const data = { name, pet_category_id: Number(category) || 0 };
+      // Category labels like "Dog" must resolve through the account-backed selector, not Number(text) -> 0.
+      const data = { name: name.trim(), pet_category_id: selectedCategoryId! };
       if (editingId) {
         return api.pets.contactsPetsUpdate(String(vaultId), String(contactId), editingId, data);
       }
@@ -71,13 +81,13 @@ export default function PetsModule({
     setAdding(false);
     setEditingId(null);
     setName("");
-    setCategory("");
+    setSelectedCategoryId(null);
   }
 
   function startEdit(pet: Pet) {
     setEditingId(pet.id ?? null);
     setName(pet.name ?? '');
-    setCategory(String(pet.pet_category_id ?? ''));
+    setSelectedCategoryId(pet.pet_category_id ?? null);
     setAdding(false);
   }
 
@@ -111,17 +121,22 @@ export default function PetsModule({
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <Input
+            <Select
               placeholder={t("modules.pets.category_placeholder")}
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={selectedCategoryId ?? undefined}
+              onChange={(value) => setSelectedCategoryId(value)}
+              options={petCategories.map((category) => ({ value: category.id, label: category.name }))}
+              loading={isCategoriesLoading}
+              showSearch
+              optionFilterProp="label"
+              style={{ width: "100%" }}
             />
             <Space>
               <Button
                 type="primary"
                 onClick={() => saveMutation.mutate()}
                 loading={saveMutation.isPending}
-                disabled={!name.trim() || !category.trim()}
+                disabled={!name.trim() || selectedCategoryId === null}
                 size="small"
               >
                 {editingId ? t("common.update") : t("common.save")}
@@ -156,7 +171,7 @@ export default function PetsModule({
           >
             <List.Item.Meta
               title={<span style={{ fontWeight: 500 }}>{pet.name}</span>}
-              description={<Tag>{pet.pet_category_id ? `#${pet.pet_category_id}` : ''}</Tag>}
+              description={<Tag>{pet.pet_category_name ?? ''}</Tag>}
             />
           </List.Item>
         )}

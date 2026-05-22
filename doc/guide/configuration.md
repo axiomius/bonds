@@ -1,6 +1,6 @@
 # Configuration
 
-Bonds uses a hybrid configuration model: **infrastructure settings** are configured via environment variables, while **application settings** are managed through the admin panel in the web UI.
+Bonds uses a hybrid configuration model: **infrastructure settings** are configured via environment variables, while **application settings** are managed safely through the admin panel in the web UI.
 
 ## Environment Variables
 
@@ -33,7 +33,7 @@ cp server/.env.example server/.env
 
 ### Database Connection
 
-**SQLite** (default — zero configuration):
+**SQLite** (default, zero configuration):
 ```bash
 DB_DRIVER=sqlite
 DB_DSN=bonds.db
@@ -49,15 +49,18 @@ DB_DSN="host=localhost port=5432 user=bonds password=secret dbname=bonds sslmode
 
 Most application settings are configured through the **Admin Settings** panel, accessible to users with admin privileges. These include:
 
-- **SMTP** — Mail server settings for sending notifications and invitations
-- **OAuth** — GitHub and Google OAuth client credentials
-- **OIDC** — OpenID Connect provider for SSO (Authentik, Keycloak, etc.)
-- **WebAuthn** — Relying Party configuration for passkey authentication
-- **Telegram** — Bot token for Telegram notifications
-- **Geocoding** — Provider and API key for address geocoding
-- **Announcement** — Global banner text displayed to all users
-- **Backup** — Cron schedule, retention period for automatic backups
- **Swagger** — Enable/disable API documentation UI independently of debug mode
+- **General**: Application name, public URL, announcement banner.
+- **Authentication**: Password login toggle, registration toggle.
+- **JWT**: Token expiry, refresh window.
+- **SMTP**: Mail server host, port, credentials, sender address.
+- **OAuth**: GitHub and Google OAuth client credentials.
+- **OIDC**: OpenID Connect provider for SSO (Authentik, Keycloak, etc.).
+- **WebAuthn**: Relying Party configuration for passkey authentication.
+- **Telegram**: Bot token for Telegram notifications.
+- **Geocoding**: Provider and API key for address geocoding.
+- **Storage**: Max upload size for files and documents (configured inside UI, not via env vars).
+- **Backup**: Cron schedule, retention period for automatic backups.
+- **Swagger**: Enable or disable API documentation UI independently of debug mode.
 
 ::: tip Migration from Environment Variables
 On first startup, Bonds seeds these admin settings from environment variables if present. After that, all changes are made through the admin panel. Environment variables for these settings are only used as initial seed values.
@@ -77,7 +80,7 @@ SETTINGS_ENC_KEY="$(openssl rand -hex 32)"
 Behaviour:
 
 - The key is **never written to the database**, so a stolen DB backup alone cannot recover plaintext.
-- Encrypted rows are tagged with the prefix `enc:v1:` — already-encrypted rows are detected and skipped on re-encryption.
+- Encrypted rows are tagged with the prefix `enc:v1:`. Already-encrypted rows are detected and skipped on re-encryption.
 - On startup, any pre-existing plaintext rows in the secret-key whitelist are **automatically migrated** to ciphertext (idempotent).
 - Leave the variable empty to keep the legacy plaintext behaviour. Single-instance deployments are not forced to migrate.
 - The admin **GET /api/admin/settings** endpoint always redacts secret keys to `***`. Submitting `***` on **PUT** keeps the existing value untouched, so admin UIs can round-trip non-secret edits safely.
@@ -90,18 +93,18 @@ Currently encrypted at rest when the key is set:
 | `oauth_providers.client_secret` (GitHub, Google, GitLab, Discord, OIDC) | AES-256-GCM |
 
 ::: warning Losing the key
-If you set `SETTINGS_ENC_KEY` and then lose it, encrypted secrets are unrecoverable. Treat this key like `JWT_SECRET` — back it up out-of-band.
+If you set `SETTINGS_ENC_KEY` and then lose it, encrypted secrets are unrecoverable. Treat this key like `JWT_SECRET` and back it up out-of-band.
 :::
 
 ## Production Checklist
 
-1. **Set `JWT_SECRET`** — Use a strong, random string (32+ characters)
-2. **Set `SETTINGS_ENC_KEY`** — Recommended for production. Encrypts SMTP/OAuth/geocoding credentials at rest
-3. **Set `APP_ENV=production`** — Disables debug features
-4. **Set `APP_URL`** — Your public URL (used in emails, OAuth callbacks)
-5. **Configure SMTP** — Required for email notifications and invitations
-6. **Use HTTPS** — Required for WebAuthn; recommended for all deployments
-7. **Backup** — Configure automatic backups via the admin panel
+1. **Set `JWT_SECRET`**: Use a strong, random string (32+ characters).
+2. **Set `SETTINGS_ENC_KEY`**: Recommended for production. Encrypts SMTP/OAuth/geocoding credentials at rest.
+3. **Set `APP_ENV=production`**: Disables debug features.
+4. **Set `APP_URL`**: Your public URL, used in emails and OAuth callbacks.
+5. **Configure SMTP**: Required for email notifications and invitations.
+6. **Use HTTPS**: Required for WebAuthn; recommended for all deployments.
+7. **Backup**: Configure automatic backups via the admin panel.
 
 ## Docker Environment Example
 

@@ -269,6 +269,10 @@ func TestMonicaImport_RealAnonymizedExport(t *testing.T) {
 }
 
 func setupMonicaImportTest(t *testing.T) (*MonicaImportService, string, string, string) {
+	return setupMonicaImportTestWithLocale(t, "en")
+}
+
+func setupMonicaImportTestWithLocale(t *testing.T, locale string) (*MonicaImportService, string, string, string) {
 	t.Helper()
 	db := testutil.SetupTestDB(t)
 	cfg := testutil.TestJWTConfig()
@@ -280,12 +284,12 @@ func setupMonicaImportTest(t *testing.T) (*MonicaImportService, string, string, 
 		LastName:  "User",
 		Email:     "monica-test@example.com",
 		Password:  "password123",
-	}, "en")
+	}, locale)
 	if err != nil {
 		t.Fatalf("Register failed: %v", err)
 	}
 
-	vault, err := vaultSvc.CreateVault(resp.User.AccountID, resp.User.ID, dto.CreateVaultRequest{Name: "Test Vault"}, "en")
+	vault, err := vaultSvc.CreateVault(resp.User.AccountID, resp.User.ID, dto.CreateVaultRequest{Name: "Test Vault"}, locale)
 	if err != nil {
 		t.Fatalf("CreateVault failed: %v", err)
 	}
@@ -362,6 +366,54 @@ func TestMonicaImportContacts_Gender(t *testing.T) {
 	}
 	if gender.Name == nil || *gender.Name != "Male" {
 		t.Errorf("expected gender name=Male, got %v", gender.Name)
+	}
+}
+
+func TestMonicaImportContacts_GenderFallsBackToType(t *testing.T) {
+	svc, vaultID, userID, _ := setupMonicaImportTestWithLocale(t, "zh")
+
+	exportJSON := `{
+		"version": "1.0-preview.1",
+		"account": {
+			"uuid": "test-account",
+			"data": [
+				{"count": 1, "type": "contacts", "values": [
+					{
+						"uuid": "contact-jane",
+						"properties": {"first_name": "Jane", "gender": "gender-f"},
+						"data": []
+					}
+				]}
+			],
+			"instance": {
+				"genders": [
+					{
+						"uuid": "gender-f",
+						"properties": {"name": "Item 50", "type": "F"}
+					}
+				]
+			}
+		}
+	}`
+
+	if _, err := svc.Import(vaultID, userID, []byte(exportJSON)); err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
+
+	var jane models.Contact
+	if err := svc.DB.Where("vault_id = ? AND first_name = ?", vaultID, "Jane").First(&jane).Error; err != nil {
+		t.Fatalf("Jane not found: %v", err)
+	}
+	if jane.GenderID == nil {
+		t.Fatal("expected Jane.GenderID to be set")
+	}
+
+	var gender models.Gender
+	if err := svc.DB.First(&gender, *jane.GenderID).Error; err != nil {
+		t.Fatalf("Gender not found: %v", err)
+	}
+	if gender.NameTranslationKey == nil || *gender.NameTranslationKey != "seed.genders.female" {
+		t.Errorf("expected gender name translation key seed.genders.female, got %v", gender.NameTranslationKey)
 	}
 }
 

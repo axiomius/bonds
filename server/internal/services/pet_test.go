@@ -38,6 +38,37 @@ func setupPetTest(t *testing.T) (*PetService, string, string) {
 	return NewPetService(db), contact.ID, vault.ID
 }
 
+func setupPetTestWithDB(t *testing.T) (*PetService, *AuthService, *VaultService, string, string, string) {
+	t.Helper()
+	db := testutil.SetupTestDB(t)
+	cfg := testutil.TestJWTConfig()
+	authSvc := NewAuthService(db, cfg)
+	vaultSvc := NewVaultService(db)
+
+	resp, err := authSvc.Register(dto.RegisterRequest{
+		FirstName: "Test",
+		LastName:  "User",
+		Email:     "pet-test@example.com",
+		Password:  "password123",
+	}, "en")
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	vault, err := vaultSvc.CreateVault(resp.User.AccountID, resp.User.ID, dto.CreateVaultRequest{Name: "Test Vault"}, "en")
+	if err != nil {
+		t.Fatalf("CreateVault failed: %v", err)
+	}
+
+	contactSvc := NewContactService(db)
+	contact, err := contactSvc.CreateContact(vault.ID, resp.User.ID, dto.CreateContactRequest{FirstName: "John"})
+	if err != nil {
+		t.Fatalf("CreateContact failed: %v", err)
+	}
+
+	return NewPetService(db), authSvc, vaultSvc, contact.ID, vault.ID, resp.User.AccountID
+}
+
 func TestCreatePet(t *testing.T) {
 	svc, contactID, vaultID := setupPetTest(t)
 
@@ -60,6 +91,9 @@ func TestCreatePet(t *testing.T) {
 	if pet.ID == 0 {
 		t.Error("Expected pet ID to be non-zero")
 	}
+	if pet.PetCategoryName != "Dog" {
+		t.Errorf("Expected pet_category_name 'Dog', got '%s'", pet.PetCategoryName)
+	}
 }
 
 func TestListPets(t *testing.T) {
@@ -80,6 +114,24 @@ func TestListPets(t *testing.T) {
 	}
 	if len(pets) != 2 {
 		t.Errorf("Expected 2 pets, got %d", len(pets))
+	}
+	if pets[0].PetCategoryName != "Cat" && pets[0].PetCategoryName != "Dog" {
+		t.Errorf("Expected pet category name on list response, got '%s'", pets[0].PetCategoryName)
+	}
+}
+
+func TestListCategories(t *testing.T) {
+	svc, _, _, _, _, accountID := setupPetTestWithDB(t)
+
+	categories, err := svc.ListCategories(accountID)
+	if err != nil {
+		t.Fatalf("ListCategories failed: %v", err)
+	}
+	if len(categories) == 0 {
+		t.Fatal("Expected seeded pet categories")
+	}
+	if categories[0].Name != "Dog" {
+		t.Errorf("Expected first category name 'Dog', got '%s'", categories[0].Name)
 	}
 }
 
@@ -103,6 +155,104 @@ func TestUpdatePet(t *testing.T) {
 	}
 	if updated.PetCategoryID != 2 {
 		t.Errorf("Expected pet_category_id 2, got %d", updated.PetCategoryID)
+	}
+	if updated.PetCategoryName != "Cat" {
+		t.Errorf("Expected pet_category_name 'Cat', got '%s'", updated.PetCategoryName)
+	}
+}
+
+func TestCreatePetRejectsCrossAccountCategory(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	cfg := testutil.TestJWTConfig()
+	authSvc := NewAuthService(db, cfg)
+	vaultSvc := NewVaultService(db)
+
+	first, err := authSvc.Register(dto.RegisterRequest{FirstName: "One", LastName: "User", Email: "one@example.com", Password: "password123"}, "en")
+	if err != nil {
+		t.Fatalf("Register first account failed: %v", err)
+	}
+	second, err := authSvc.Register(dto.RegisterRequest{FirstName: "Two", LastName: "User", Email: "two@example.com", Password: "password123"}, "en")
+	if err != nil {
+		t.Fatalf("Register second account failed: %v", err)
+	}
+
+	vault, err := vaultSvc.CreateVault(first.User.AccountID, first.User.ID, dto.CreateVaultRequest{Name: "Vault"}, "en")
+	if err != nil {
+		t.Fatalf("CreateVault failed: %v", err)
+	}
+	contactSvc := NewContactService(db)
+	contact, err := contactSvc.CreateContact(vault.ID, first.User.ID, dto.CreateContactRequest{FirstName: "John"})
+	if err != nil {
+		t.Fatalf("CreateContact failed: %v", err)
+	}
+	var otherCategory struct{ ID uint }
+	if err := db.Table("pet_categories").Where("account_id = ?", second.User.AccountID).Order("id ASC").Select("id").First(&otherCategory).Error; err != nil {
+		t.Fatalf("failed to load second account pet category: %v", err)
+	}
+
+	petSvc := NewPetService(db)
+	_, err = petSvc.Create(contact.ID, vault.ID, dto.CreatePetRequest{PetCategoryID: 1, Name: "Buddy"})
+	if err != nil {
+		t.Fatalf("Create pet with own category failed: %v", err)
+	}
+
+	_, err = petSvc.Create(contact.ID, vault.ID, dto.CreatePetRequest{PetCategoryID: 9999, Name: "Missing"})
+	if err != ErrPetCategoryNotFound {
+		t.Fatalf("Expected ErrPetCategoryNotFound for missing category, got %v", err)
+	}
+
+	if first.User.AccountID == second.User.AccountID {
+		t.Fatal("expected distinct accounts")
+	}
+	_, err = petSvc.Create(contact.ID, vault.ID, dto.CreatePetRequest{PetCategoryID: otherCategory.ID, Name: "Cross-account"})
+	if err != ErrPetCategoryNotFound {
+		t.Fatalf("Expected ErrPetCategoryNotFound for cross-account category, got %v", err)
+	}
+}
+
+func TestUpdatePetRejectsCrossAccountCategory(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	cfg := testutil.TestJWTConfig()
+	authSvc := NewAuthService(db, cfg)
+	vaultSvc := NewVaultService(db)
+
+	first, err := authSvc.Register(dto.RegisterRequest{FirstName: "One", LastName: "User", Email: "update-one@example.com", Password: "password123"}, "en")
+	if err != nil {
+		t.Fatalf("Register first account failed: %v", err)
+	}
+	second, err := authSvc.Register(dto.RegisterRequest{FirstName: "Two", LastName: "User", Email: "update-two@example.com", Password: "password123"}, "en")
+	if err != nil {
+		t.Fatalf("Register second account failed: %v", err)
+	}
+
+	vault, err := vaultSvc.CreateVault(first.User.AccountID, first.User.ID, dto.CreateVaultRequest{Name: "Vault"}, "en")
+	if err != nil {
+		t.Fatalf("CreateVault failed: %v", err)
+	}
+	contactSvc := NewContactService(db)
+	contact, err := contactSvc.CreateContact(vault.ID, first.User.ID, dto.CreateContactRequest{FirstName: "John"})
+	if err != nil {
+		t.Fatalf("CreateContact failed: %v", err)
+	}
+	var otherCategory struct{ ID uint }
+	if err := db.Table("pet_categories").Where("account_id = ?", second.User.AccountID).Order("id ASC").Select("id").First(&otherCategory).Error; err != nil {
+		t.Fatalf("failed to load second account pet category: %v", err)
+	}
+
+	petSvc := NewPetService(db)
+	created, err := petSvc.Create(contact.ID, vault.ID, dto.CreatePetRequest{PetCategoryID: 1, Name: "Buddy"})
+	if err != nil {
+		t.Fatalf("Create pet failed: %v", err)
+	}
+
+	_, err = petSvc.Update(created.ID, contact.ID, vault.ID, dto.UpdatePetRequest{PetCategoryID: otherCategory.ID, Name: "Updated"})
+	if err != ErrPetCategoryNotFound {
+		t.Fatalf("Expected ErrPetCategoryNotFound for cross-account update category, got %v", err)
+	}
+
+	_, err = petSvc.Update(created.ID, contact.ID, vault.ID, dto.UpdatePetRequest{PetCategoryID: 1, Name: "Updated"})
+	if err != nil {
+		t.Fatalf("Expected own category to continue working on update, got %v", err)
 	}
 }
 
