@@ -84,14 +84,20 @@ func (s *ReminderSchedulerService) processOne(scheduled *models.ContactReminderS
 	// when the user isn't loaded (legacy callers) — i18n.T then returns the
 	// English text rather than the raw key.
 	locale := "en"
-	if channel.User != nil && channel.User.Locale != "" {
-		locale = channel.User.Locale
+	enableAltCalendar := false
+	if channel.User != nil {
+		if channel.User.Locale != "" {
+			locale = channel.User.Locale
+		}
+		enableAltCalendar = channel.User.EnableAlternativeCalendar
 	}
 	contactName := buildContactName(&reminder.Contact, locale)
+	dateStr := formatReminderDate(reminder, scheduled.ScheduledAt, enableAltCalendar)
 	subject := i18n.Tt(locale, "reminder.subject", map[string]string{"label": reminder.Label})
 	htmlBody := i18n.Tt(locale, "reminder.body", map[string]string{
 		"label":   reminder.Label,
 		"contact": contactName,
+		"date":    dateStr,
 	})
 
 	var sendErr error

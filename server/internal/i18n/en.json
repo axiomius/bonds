@@ -441,6 +441,6 @@
   "notification.channel.test.subject": "Test notification",
   "notification.channel.test.body": "<p>This is a test notification from Bonds.</p>",
   "reminder.subject": "Reminder: {{label}}",
-  "reminder.body": "<h2>Reminder: {{label}}</h2><p>You have a reminder for <strong>{{contact}}</strong>.</p><p>{{label}}</p>",
+  "reminder.body": "<h2>Reminder: {{label}}</h2><p>You have a reminder for <strong>{{contact}}</strong> on <strong>{{date}}</strong>.</p><p>{{label}}</p>",
   "reminder.unknown_contact": "Unknown"
 }

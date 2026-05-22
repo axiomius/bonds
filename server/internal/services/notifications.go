@@ -3,9 +3,11 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
+	calendarPkg "github.com/naiba/bonds/internal/calendar"
 	"github.com/naiba/bonds/internal/dto"
 	"github.com/naiba/bonds/internal/i18n"
 	"github.com/naiba/bonds/internal/models"
@@ -327,25 +329,34 @@ func (s *NotificationService) ScheduleAllContactReminders(channelID uint, userID
 			continue
 		}
 
+		// nextLunarOccurrence returns a zero Time when the reminder isn't
+		// lunar or the converter is unavailable — fall back to the cached
+		// Gregorian fields. Keeping the two paths separated rather than
+		// merged so a future-me reading this can see "lunar uses converter,
+		// gregorian uses cached fields" without unwinding shared variables.
 		var upcomingDate time.Time
-		month := 1
-		day := 1
-		if r.Month != nil {
-			month = *r.Month
-		}
-		if r.Day != nil {
-			day = *r.Day
-		}
-		if r.Year == nil || *r.Year == 0 {
-			upcomingDate = time.Date(now.Year(), time.Month(month), day, 0, 0, 0, 0, loc)
+		if lunarDate, ok := nextLunarOccurrence(&r, now, loc); ok {
+			upcomingDate = lunarDate
 		} else {
-			upcomingDate = time.Date(*r.Year, time.Month(month), day, 0, 0, 0, 0, loc)
-		}
+			month := 1
+			day := 1
+			if r.Month != nil {
+				month = *r.Month
+			}
+			if r.Day != nil {
+				day = *r.Day
+			}
+			if r.Year == nil || *r.Year == 0 {
+				upcomingDate = time.Date(now.Year(), time.Month(month), day, 0, 0, 0, 0, loc)
+			} else {
+				upcomingDate = time.Date(*r.Year, time.Month(month), day, 0, 0, 0, 0, loc)
+			}
 
-		if upcomingDate.Before(now) {
-			upcomingDate = time.Date(now.Year(), time.Month(month), day, 0, 0, 0, 0, loc)
 			if upcomingDate.Before(now) {
-				upcomingDate = upcomingDate.AddDate(1, 0, 0)
+				upcomingDate = time.Date(now.Year(), time.Month(month), day, 0, 0, 0, 0, loc)
+				if upcomingDate.Before(now) {
+					upcomingDate = upcomingDate.AddDate(1, 0, 0)
+				}
 			}
 		}
 
@@ -366,6 +377,39 @@ func (s *NotificationService) ScheduleAllContactReminders(channelID uint, userID
 	}
 
 	return nil
+}
+
+// nextLunarOccurrence resolves the next Gregorian fire date for a lunar
+// (or other non-Gregorian) reminder using its OriginalMonth/OriginalDay
+// metadata. Without this, ScheduleAllContactReminders would naively reuse
+// the cached Gregorian projection from whichever year the reminder was
+// first created — and lunar dates drift year over year, so the channel
+// would fire on the wrong day each time it was reactivated.
+//
+// Returns ok=false for Gregorian reminders and when the converter cannot
+// resolve the next date — callers should fall back to the cached fields.
+func nextLunarOccurrence(r *models.ContactReminder, now time.Time, loc *time.Location) (time.Time, bool) {
+	ct := calendarPkg.CalendarType(r.CalendarType)
+	if ct == "" || ct == calendarPkg.Gregorian {
+		return time.Time{}, false
+	}
+	if r.OriginalMonth == nil || r.OriginalDay == nil {
+		return time.Time{}, false
+	}
+	converter, ok := calendarPkg.Get(ct)
+	if !ok {
+		return time.Time{}, false
+	}
+	orig := calendarPkg.DateInfo{Day: *r.OriginalDay, Month: *r.OriginalMonth}
+	if r.OriginalYear != nil {
+		orig.Year = *r.OriginalYear
+	}
+	gd, err := converter.NextOccurrence(orig, now.AddDate(0, 0, -1))
+	if err != nil {
+		log.Printf("[notifications] lunar NextOccurrence failed for reminder %d: %v", r.ID, err)
+		return time.Time{}, false
+	}
+	return time.Date(gd.Year, time.Month(gd.Month), gd.Day, 0, 0, 0, 0, loc), true
 }
 
 func toNotificationChannelResponse(ch *models.UserNotificationChannel) dto.NotificationChannelResponse {

@@ -387,6 +387,6 @@
   "notification.channel.test.subject": "Notificación de prueba",
   "notification.channel.test.body": "<p>Esta es una notificación de prueba de Bonds.</p>",
   "reminder.subject": "Recordatorio: {{label}}",
-  "reminder.body": "<h2>Recordatorio: {{label}}</h2><p>Tienes un recordatorio para <strong>{{contact}}</strong>.</p><p>{{label}}</p>",
+  "reminder.body": "<h2>Recordatorio: {{label}}</h2><p>Tienes un recordatorio para <strong>{{contact}}</strong> el <strong>{{date}}</strong>.</p><p>{{label}}</p>",
   "reminder.unknown_contact": "Desconocido"
 }

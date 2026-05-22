@@ -441,6 +441,6 @@
   "notification.channel.test.subject": "测试通知",
   "notification.channel.test.body": "<p>这是一条来自 Bonds 的测试通知。</p>",
   "reminder.subject": "提醒：{{label}}",
-  "reminder.body": "<h2>提醒：{{label}}</h2><p>你有一条关于 <strong>{{contact}}</strong> 的提醒。</p><p>{{label}}</p>",
+  "reminder.body": "<h2>提醒：{{label}}</h2><p>你有一条关于 <strong>{{contact}}</strong> 的提醒（<strong>{{date}}</strong>）。</p><p>{{label}}</p>",
   "reminder.unknown_contact": "未知联系人"
 }
