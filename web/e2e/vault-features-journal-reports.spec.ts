@@ -789,7 +789,9 @@ test.describe('Vault Reports - Overview Counts', () => {
     await dateSelects.nth(1).click();
     await page.locator('.ant-select-dropdown:visible .ant-select-item-option').nth(5).click();
     await dateSelects.nth(2).click();
-    await page.locator('.ant-select-dropdown:visible .ant-select-item-option').nth(14).click();
+    // AntD virtualizes day options, so only select from the rendered range instead of relying on absolute indexes.
+    await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: /^24$/ }).click();
+    await dateModal.locator('.ant-modal-header').click();
 
     const dateResp = page.waitForResponse(
       (resp) => resp.url().includes('/dates') && resp.request().method() === 'POST'
