@@ -8,6 +8,7 @@ import (
 	echoSwagger "github.com/swaggo/echo-swagger"
 
 	"github.com/naiba/bonds/internal/config"
+	internalmcp "github.com/naiba/bonds/internal/mcp"
 	"github.com/naiba/bonds/internal/middleware"
 	"github.com/naiba/bonds/internal/models"
 	"github.com/naiba/bonds/internal/search"
@@ -771,4 +772,14 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, cfg *config.Config, version strin
 
 	vaultSettings.POST("/import/monica", monicaImportHandler.Import)
 	vaultSettings.POST("/import/csv", csvImportHandler.Import)
+
+	mcpRegistry := internalmcp.NewActionRegistry(e)
+	mcpExecutor := internalmcp.NewActionExecutor(e, mcpRegistry)
+	mcpSearcher := internalmcp.NewBondsSearcher(db, searchService, vaultService)
+	mcpFetcher := internalmcp.NewResourceFetcher(db, vaultService)
+	mcpHandler := internalmcp.NewHandler(db, mcpRegistry, mcpExecutor, mcpSearcher, mcpFetcher)
+	mcpMiddleware := []echo.MiddlewareFunc{internalmcp.RequireAllowedOrigin(cfg.App.URL, "http://localhost:5173", "http://localhost:3000"), authMiddleware.Authenticate, middleware.RequireEmailVerification(emailVerificationRequired)}
+	e.POST("/mcp", mcpHandler.Handle, mcpMiddleware...)
+	e.GET("/mcp", mcpHandler.MethodNotAllowed, mcpMiddleware...)
+	e.DELETE("/mcp", mcpHandler.MethodNotAllowed, mcpMiddleware...)
 }
