@@ -34,6 +34,7 @@ Monica is a beloved open-source personal CRM with 24k+ stars. But as a side proj
 - **CardDAV / CalDAV**: Sync contacts and calendars with Apple, Thunderbird, and other DAV clients. Supports Personal Access Tokens.
 - **DAV Sync Subscriptions**: Subscribe to and sync from external CardDAV address books directly into a vault.
 - **Personal Access Tokens**: Generate secure API and sync tokens to access endpoints safely.
+- **AI Agent Access (MCP)**: Built-in `/mcp` endpoint for MCP clients. Agents can discover capabilities, search vault data, fetch resources, and execute existing `/api` operations with the same auth and permissions. See [AI Agent Access](https://naiba.github.io/bonds/features/ai-agents).
 - **CSV Import**: Import contacts from a CSV file with a user-defined column mapping (name, email, phone, birthday, address, tags, groups, notes).
 - **Monica Import**: Migrate contacts directly from a Monica instance via API.
 - **vCard Import/Export**: Bulk import `.vcf` files, export individual or all contacts.
