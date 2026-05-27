@@ -41,6 +41,7 @@ func TestIsSupported(t *testing.T) {
 		{"en", true},
 		{"zh", true},
 		{"es", true},
+		{"fr", true},
 		{"de", false},
 		{"", false},
 		{"zh-CN", false},

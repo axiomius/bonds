@@ -4,9 +4,11 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import "dayjs/locale/es";
+import "dayjs/locale/fr";
 import en from "./locales/en.json";
 import zh from "./locales/zh.json";
 import es from "./locales/es.json";
+import fr from "./locales/fr.json";
 
 // Source of truth for which languages the UI/backend can actually serve.
 // Keep this in sync with `resources` below and with `server/internal/i18n/*.json`.
@@ -16,6 +18,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
   { code: "zh", label: "中文" },
   { code: "es", label: "Español" },
+  { code: "fr", label: "Français" },
 ] as const;
 
 export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];
@@ -37,6 +40,7 @@ const DAYJS_LOCALES: Record<SupportedLanguageCode, string> = {
   en: "en",
   zh: "zh-cn",
   es: "es",
+  fr: "fr",
 };
 
 function syncDayjsLocale(code: string) {
@@ -51,6 +55,7 @@ i18n
       en: { translation: en },
       zh: { translation: zh },
       es: { translation: es },
+      fr: { translation: fr },
     },
     fallbackLng: "en",
     interpolation: {

@@ -13,7 +13,7 @@ package i18n
 //
 // Keeping these three in sync prevents the trap where a user persists an
 // unsupported locale (e.g. "de") and the UI silently falls back to English.
-var Supported = []string{"en", "zh", "es"}
+var Supported = []string{"en", "zh", "es", "fr"}
 
 // IsSupported reports whether lang exactly matches one of the loaded
 // locale bundles. Callers that need to coerce region tags like "zh-CN"
