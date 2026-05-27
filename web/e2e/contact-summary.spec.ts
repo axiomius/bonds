@@ -127,6 +127,9 @@ test.describe('Contact Summary Card', () => {
     // ContactInfo module uses inline form: click Add to show the form
     await infoCard.getByRole('button', { name: /add/i }).click();
 
+    await infoCard.locator('.ant-select:visible').click();
+    await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: /email/i }).first().click();
+
     const valueInput = infoCard.getByPlaceholder(/value/i);
     await expect(valueInput).toBeVisible({ timeout: 5000 });
     await valueInput.fill('summary@example.com');

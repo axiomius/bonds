@@ -376,6 +376,9 @@ test.describe('Contact Modules - Contact Information', () => {
     await expect(infoCard).toBeVisible({ timeout: 10000 });
     await infoCard.getByRole('button', { name: /add/i }).click();
 
+    await infoCard.locator('.ant-select:visible').click();
+    await page.locator('.ant-select-dropdown:visible .ant-select-item-option').first().click();
+
     const valueInput = infoCard.getByPlaceholder(/value/i);
     await expect(valueInput).toBeVisible({ timeout: 5000 });
     await valueInput.fill('test@example.com');
@@ -402,6 +405,9 @@ test.describe('Contact Modules - Contact Information Delete', () => {
     const infoCard = page.locator('.ant-card').filter({ hasText: 'Contact Information' });
     await expect(infoCard).toBeVisible({ timeout: 10000 });
     await infoCard.getByRole('button', { name: /add/i }).click();
+
+    await infoCard.locator('.ant-select:visible').click();
+    await page.locator('.ant-select-dropdown:visible .ant-select-item-option').first().click();
 
     const valueInput = infoCard.getByPlaceholder(/value/i);
     await expect(valueInput).toBeVisible({ timeout: 5000 });
