@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import esES from "antd/locale/es_ES";
+import frFR from "antd/locale/fr_FR";
 import type { Locale } from "antd/lib/locale";
 import { useTheme } from "@/stores/theme";
 import { normalizeLanguageCode } from "@/i18n";
@@ -26,6 +27,7 @@ const ANTD_LOCALES: Record<string, Locale> = {
   en: enUS,
   zh: zhCN,
   es: esES,
+  fr: frFR,
 };
 
 export default function ThemedApp() {

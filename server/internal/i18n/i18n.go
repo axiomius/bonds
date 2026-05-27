@@ -17,7 +17,7 @@ var (
 
 func load() {
 	translations = make(map[string]map[string]string)
-	for _, lang := range []string{"en", "zh", "es", "fr"} {
+	for _, lang := range Supported {
 		data, err := localeFS.ReadFile(lang + ".json")
 		if err != nil {
 			panic("i18n: failed to load " + lang + ".json: " + err.Error())

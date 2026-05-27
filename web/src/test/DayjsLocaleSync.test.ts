@@ -30,6 +30,12 @@ describe("dayjs locale follows i18next language", () => {
     expect(monthName.toLowerCase()).toBe("enero");
   });
 
+  it("switches to French on changeLanguage('fr')", async () => {
+    await i18n.changeLanguage("fr");
+    const monthName = dayjs("2026-01-15").format("MMMM");
+    expect(monthName.toLowerCase()).toBe("janvier");
+  });
+
   it("normalizes region tags so zh-CN also flips dayjs to zh-cn", async () => {
     await i18n.changeLanguage("zh-CN");
     const monthName = dayjs("2026-01-15").format("MMMM");
