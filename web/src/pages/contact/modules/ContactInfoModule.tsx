@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Card,
   List,
@@ -15,20 +15,8 @@ import {
 import { PlusOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api";
-import type { ContactInfo, APIError } from "@/api";
+import type { ContactInfo, APIError, PersonalizeItem } from "@/api";
 import { useTranslation } from "react-i18next";
-
-const infoTypes = [
-  { value: "email", label: "Email" },
-  { value: "phone", label: "Phone" },
-  { value: "facebook", label: "Facebook" },
-  { value: "twitter", label: "Twitter" },
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "instagram", label: "Instagram" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "telegram", label: "Telegram" },
-  { value: "other", label: "Other" },
-];
 
 export default function ContactInfoModule({
   vaultId,
@@ -39,7 +27,7 @@ export default function ContactInfoModule({
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [type, setType] = useState("email");
+  const [typeId, setTypeId] = useState<number | undefined>(undefined);
   const [label, setLabel] = useState("");
   const [value, setValue] = useState("");
   const queryClient = useQueryClient();
@@ -47,6 +35,27 @@ export default function ContactInfoModule({
   const { t } = useTranslation();
   const { token } = theme.useToken();
   const qk = ["vaults", vaultId, "contacts", contactId, "contactInformation"];
+
+  const { data: infoTypes = [] } = useQuery<PersonalizeItem[]>({
+    queryKey: ["personalize", "contact-info-types"],
+    queryFn: async () => {
+      const res = await api.personalize.personalizeDetail("contact-info-types");
+      return res.data ?? [];
+    },
+  });
+
+  const typeOptions = useMemo(
+    () => infoTypes.map((it) => ({ value: it.id!, label: it.name || it.label || "" })),
+    [infoTypes],
+  );
+
+  const typeMap = useMemo(() => {
+    const m = new Map<number, string>();
+    infoTypes.forEach((it) => {
+      if (it.id != null) m.set(it.id, it.name || it.label || "");
+    });
+    return m;
+  }, [infoTypes]);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: qk,
@@ -58,7 +67,7 @@ export default function ContactInfoModule({
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = { data: value, kind: label || type, type_id: Math.max(1, infoTypes.findIndex((t) => t.value === type) + 1) };
+      const payload = { data: value, kind: label, type_id: typeId! };
       if (editingId) {
         return api.contactInformation.contactsContactInformationUpdate(String(vaultId), String(contactId), editingId, payload);
       }
@@ -84,16 +93,16 @@ export default function ContactInfoModule({
   function resetForm() {
     setAdding(false);
     setEditingId(null);
-    setType("email");
+    setTypeId(undefined);
     setLabel("");
     setValue("");
   }
 
   function startEdit(item: ContactInfo) {
     setEditingId(item.id ?? null);
-    setType(item.kind ?? 'email');
-    setLabel(item.kind ?? '');
-    setValue(item.data ?? '');
+    setTypeId(item.type_id ?? undefined);
+    setLabel(item.kind ?? "");
+    setValue(item.data ?? "");
     setAdding(false);
   }
 
@@ -123,10 +132,13 @@ export default function ContactInfoModule({
         }}>
           <Space orientation="vertical" style={{ width: "100%" }}>
             <Select
-              value={type}
-              onChange={setType}
-              options={infoTypes}
+              value={typeId}
+              onChange={(v) => setTypeId(v)}
+              options={typeOptions}
+              placeholder={t("common.type")}
               style={{ width: "100%" }}
+              showSearch
+              optionFilterProp="label"
             />
             <Input
               placeholder={t("modules.contact_info.label_placeholder")}
@@ -143,7 +155,7 @@ export default function ContactInfoModule({
                 type="primary"
                 onClick={() => saveMutation.mutate()}
                 loading={saveMutation.isPending}
-                disabled={!value.trim()}
+                disabled={!value.trim() || typeId == null}
                 size="small"
               >
                 {editingId ? t("common.update") : t("common.save")}
@@ -159,33 +171,37 @@ export default function ContactInfoModule({
         dataSource={items}
         locale={{ emptyText: <Empty description={t("modules.contact_info.no_info")} /> }}
         split={false}
-        renderItem={(item: ContactInfo) => (
-          <List.Item
-            style={{
-              borderRadius: token.borderRadius,
-              padding: '10px 12px',
-              marginBottom: 4,
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = token.colorFillQuaternary; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            actions={[
-              <Button key="e" type="text" size="small" icon={<EditOutlined />} onClick={() => startEdit(item)} />,
-              <Popconfirm key="d" title={t("modules.contact_info.delete_confirm")} onConfirm={() => deleteMutation.mutate(item.id!)}>
-                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-              </Popconfirm>,
-            ]}
-          >
-            <List.Item.Meta
-              title={
-                <span style={{ fontWeight: 500 }}>
-                  <Tag>{item.kind}</Tag> {item.kind}
-                </span>
-              }
-              description={<span style={{ color: token.colorTextSecondary }}>{item.data}</span>}
-            />
-          </List.Item>
-        )}
+        renderItem={(item: ContactInfo) => {
+          const typeLabel = (item.type_id != null && typeMap.get(item.type_id)) || "";
+          const labelText = item.kind && item.kind.trim() ? item.kind : typeLabel;
+          return (
+            <List.Item
+              style={{
+                borderRadius: token.borderRadius,
+                padding: '10px 12px',
+                marginBottom: 4,
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = token.colorFillQuaternary; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              actions={[
+                <Button key="e" type="text" size="small" icon={<EditOutlined />} onClick={() => startEdit(item)} />,
+                <Popconfirm key="d" title={t("modules.contact_info.delete_confirm")} onConfirm={() => deleteMutation.mutate(item.id!)}>
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>,
+              ]}
+            >
+              <List.Item.Meta
+                title={
+                  <span style={{ fontWeight: 500 }}>
+                    {typeLabel && <Tag>{typeLabel}</Tag>} {labelText}
+                  </span>
+                }
+                description={<span style={{ color: token.colorTextSecondary }}>{item.data}</span>}
+              />
+            </List.Item>
+          );
+        }}
       />
     </Card>
   );
