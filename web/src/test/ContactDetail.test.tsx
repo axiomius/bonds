@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { App as AntApp, ConfigProvider } from "antd";
 import ContactDetail from "@/pages/contact/ContactDetail";
@@ -13,7 +14,7 @@ beforeAll(() => {
 });
 
 vi.mock("@/pages/contact/modules/NotesModule", () => ({
-  default: () => <div>NotesModule</div>,
+  default: ({ readOnly }: { readOnly?: boolean }) => <div>NotesModule:{readOnly ? "read" : "edit"}</div>,
 }));
 vi.mock("@/pages/contact/modules/RemindersModule", () => ({
   default: () => <div>RemindersModule</div>,
@@ -52,7 +53,7 @@ vi.mock("@/pages/contact/modules/MoodTrackingModule", () => ({
   default: () => <div>MoodTrackingModule</div>,
 }));
 vi.mock("@/pages/contact/modules/QuickFactsModule", () => ({
-  default: () => <div>QuickFactsModule</div>,
+  default: ({ readOnly }: { readOnly?: boolean }) => <div>QuickFactsModule:{readOnly ? "read" : "edit"}</div>,
 }));
 vi.mock("@/pages/contact/modules/PhotosModule", () => ({
   default: () => <div>PhotosModule</div>,
@@ -70,7 +71,7 @@ vi.mock("@/pages/contact/modules/ExtraInfoModule", () => ({
   default: () => <div>ExtraInfoModule</div>,
 }));
 vi.mock("@/pages/contact/modules/ContactSummaryCard", () => ({
-  default: () => <div>ContactSummaryCard</div>,
+  default: ({ readOnly }: { readOnly?: boolean }) => <div>ContactSummaryCard:{readOnly ? "read" : "edit"}</div>,
 }));
 
 vi.mock("@/api/contacts", () => ({
@@ -194,14 +195,20 @@ describe("ContactDetail", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders tabs", () => {
+  it("defaults to read view mode and allows toggling to edit view", async () => {
+    const user = userEvent.setup();
     mockContactQuery.mockReturnValue({ data: mockContact, isLoading: false });
     renderContactDetail();
+
+    expect(screen.getByText("ContactSummaryCard:read")).toBeInTheDocument();
+    expect(screen.getByText("QuickFactsModule:read")).toBeInTheDocument();
+    expect(screen.getByText("NotesModule:read")).toBeInTheDocument();
+    expect(screen.queryByText("Overview")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Edit mode"));
+
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(screen.getByText("Relationships")).toBeInTheDocument();
     expect(screen.getByText("Information")).toBeInTheDocument();
-    expect(screen.getByText("Activities")).toBeInTheDocument();
-    expect(screen.getByText("Life")).toBeInTheDocument();
-    expect(screen.getByText("Photos & Docs")).toBeInTheDocument();
   });
 });

@@ -20,6 +20,7 @@ import {
   theme,
   Dropdown,
   Checkbox,
+  Segmented,
 } from "antd";
 import {
   EditOutlined,
@@ -101,6 +102,7 @@ export default function ContactDetail() {
   const { token } = theme.useToken();
   const nameOrder = useNameOrder();
   const dateFormats = useDateFormat();
+  const [viewMode, setViewMode] = useState<"read" | "edit">("read");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -341,7 +343,7 @@ export default function ContactDetail() {
       }
       if (isContactPage && moduleType === "quick_facts") {
         children.push(
-          <QuickFactsModule key={`mod-${mod.id}`} {...moduleProps} />,
+          <QuickFactsModule key={`mod-${mod.id}`} {...moduleProps} readOnly={viewMode === "read"} />,
         );
         continue;
       }
@@ -390,8 +392,8 @@ export default function ContactDetail() {
         <Space direction="vertical" style={{ width: "100%" }} size={16}>
           {overviewCard}
           <LabelsModule {...moduleProps} />
-          <QuickFactsModule {...moduleProps} />
-          <NotesModule {...moduleProps} />
+          <QuickFactsModule {...moduleProps} readOnly={viewMode === "read"} />
+          <NotesModule {...moduleProps} readOnly={viewMode === "read"} />
         </Space>
       ),
     },
@@ -640,20 +642,38 @@ export default function ContactDetail() {
       </Card>
 
       <div style={{ marginBottom: 16 }}>
-        <ContactSummaryCard vaultId={vaultId} contactId={cId} contact={contact} />
+        <ContactSummaryCard vaultId={vaultId} contactId={cId} contact={contact} readOnly={viewMode === "read"} />
       </div>
 
-      <Tabs
-        items={tabItems}
-        defaultActiveKey={tabItems[0]?.key ?? "overview"}
-        style={{
-          marginTop: 4,
-        }}
-        tabBarStyle={{
-          marginBottom: 20,
-          paddingLeft: 4,
-        }}
-      />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <Segmented
+          options={[
+            { label: t("contact.detail.view_mode"), value: "read" },
+            { label: t("contact.detail.edit_mode"), value: "edit" },
+          ]}
+          value={viewMode}
+          onChange={(val) => setViewMode(val as "read" | "edit")}
+        />
+      </div>
+
+      {viewMode === "edit" ? (
+        <Tabs
+          items={tabItems}
+          defaultActiveKey={tabItems[0]?.key ?? "overview"}
+          style={{
+            marginTop: 4,
+          }}
+          tabBarStyle={{
+            marginBottom: 20,
+            paddingLeft: 4,
+          }}
+        />
+      ) : (
+        <Space direction="vertical" style={{ width: "100%" }} size={16}>
+          <QuickFactsModule {...moduleProps} readOnly={true} />
+          <NotesModule {...moduleProps} readOnly={true} />
+        </Space>
+      )}
 
       <Modal
         title={t("contact.detail.edit_title")}
