@@ -4,7 +4,8 @@ RUN apk add --no-cache gcc musl-dev sqlite-dev
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 
 WORKDIR /build
-COPY server/go.mod server/go.sum ./
+COPY server/go.mod server/go.sum ./ 
+COPY server/vendored ./vendored
 RUN go mod download
 COPY server/ .
 RUN swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal
@@ -27,6 +28,7 @@ RUN apk add --no-cache gcc musl-dev sqlite-dev
 
 WORKDIR /build
 COPY server/go.mod server/go.sum ./
+COPY server/vendored ./vendored
 RUN go mod download
 COPY server/ .
 COPY --from=swagger /build/docs ./docs/
