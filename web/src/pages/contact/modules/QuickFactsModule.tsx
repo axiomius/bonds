@@ -27,9 +27,11 @@ import type { APIError, QuickFact, QuickFactGroup } from "@/api";
 export default function QuickFactsModule({
   vaultId,
   contactId,
+  readOnly = false,
 }: {
   vaultId: string | number;
   contactId: string | number;
+  readOnly?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -133,7 +135,9 @@ export default function QuickFactsModule({
     return group.template_label || t("modules.quick_facts.untitled_category");
   }
 
-  const showForm = adding || editingId !== null;
+  const showForm = !readOnly && (adding || editingId !== null);
+
+  if (readOnly && !isLoading && !hasFacts) return null;
 
   return (
     <Card
@@ -143,20 +147,22 @@ export default function QuickFactsModule({
         body: { padding: isCollapsed ? 0 : "16px 24px", display: isCollapsed ? "none" : "block" },
       }}
       extra={
-        <Space>
-          <Tooltip title={t("modules.quick_facts.toggle")}>
-            <Button
-              type="text"
-              icon={isCollapsed ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-              onClick={() => toggleMutation.mutate()}
-            />
-          </Tooltip>
-          {!showForm && (
-            <Button type="text" icon={<PlusOutlined />} onClick={startAdd} style={{ color: token.colorPrimary }}>
-              {t("modules.quick_facts.add")}
-            </Button>
-          )}
-        </Space>
+        !readOnly && (
+          <Space>
+            <Tooltip title={t("modules.quick_facts.toggle")}>
+              <Button
+                type="text"
+                icon={isCollapsed ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                onClick={() => toggleMutation.mutate()}
+              />
+            </Tooltip>
+            {!showForm && (
+              <Button type="link" icon={<PlusOutlined />} onClick={startAdd}>
+                {t("modules.quick_facts.add")}
+              </Button>
+            )}
+          </Space>
+        )
       }
     >
       {showForm && (
@@ -237,12 +243,14 @@ export default function QuickFactsModule({
                     }}
                   >
                     <Typography.Text style={{ fontWeight: 500 }}>{fact.content}</Typography.Text>
-                    <Space size={0}>
-                      <Button type="text" size="small" icon={<EditOutlined />} onClick={() => startEdit(fact)} />
-                      <Popconfirm title={t("modules.quick_facts.delete_confirm")} onConfirm={() => deleteMutation.mutate(fact)}>
-                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                      </Popconfirm>
-                    </Space>
+                    {!readOnly && (
+                      <Space size={0}>
+                        <Button type="text" size="small" icon={<EditOutlined />} onClick={() => startEdit(fact)} />
+                        <Popconfirm title={t("modules.quick_facts.delete_confirm")} onConfirm={() => deleteMutation.mutate(fact)}>
+                          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                      </Space>
+                    )}
                   </div>
                 ))}
               </Space>
