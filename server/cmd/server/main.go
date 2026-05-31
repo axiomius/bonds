@@ -15,7 +15,6 @@ import (
 	"github.com/naiba/bonds/internal/config"
 	"github.com/naiba/bonds/internal/cron"
 	"github.com/naiba/bonds/internal/database"
-	"github.com/naiba/bonds/internal/dav"
 	"github.com/naiba/bonds/internal/frontend"
 	"github.com/naiba/bonds/internal/handlers"
 	appMiddleware "github.com/naiba/bonds/internal/middleware"
@@ -95,7 +94,9 @@ func main() {
 		log.Printf("WARNING: Failed to register reminder cron job: %v", err)
 	}
 
-	vcardService := services.NewVCardService(db)
+	// nil is acceptable here as it is only used for generating vCards during DAV sync
+	// TODO: fix this?
+	vcardService := services.NewVCardService(db, nil)
 	davClientService := services.NewDavClientService(db, cfg.JWT.Secret)
 	davSyncService := services.NewDavSyncService(db, davClientService, vcardService)
 	if err := scheduler.RegisterJob("0 */5 * * * *", "sync_address_books", func() {
@@ -134,8 +135,6 @@ func main() {
 	e.Use(appMiddleware.Locale())
 
 	handlers.RegisterRoutes(e, db, cfg, Version)
-
-	dav.SetupDAVRoutes(e, db)
 
 	if frontend.HasDistFiles() {
 		frontend.RegisterSPARoutes(e)

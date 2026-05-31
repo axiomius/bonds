@@ -12,17 +12,25 @@ import (
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/carddav"
 	"github.com/naiba/bonds/internal/models"
+	"github.com/naiba/bonds/internal/services"
 	"gorm.io/gorm"
 )
 
 // CardDAVBackend implements the carddav.Backend interface.
 type CardDAVBackend struct {
-	db *gorm.DB
+	db           *gorm.DB
+	vCardService *services.VCardService
 }
 
 // NewCardDAVBackend creates a new CardDAV backend.
-func NewCardDAVBackend(db *gorm.DB) *CardDAVBackend {
-	return &CardDAVBackend{db: db}
+func NewCardDAVBackend(
+	db *gorm.DB,
+	vCardService *services.VCardService,
+) *CardDAVBackend {
+	return &CardDAVBackend{
+		db:           db,
+		vCardService: vCardService,
+	}
 }
 
 func (b *CardDAVBackend) CurrentUserPrincipal(ctx context.Context) (string, error) {
@@ -134,7 +142,7 @@ func (b *CardDAVBackend) GetAddressObject(ctx context.Context, path string, _ *c
 		return nil, err
 	}
 
-	return contactToAddressObject(&contact, userID), nil
+	return b.contactToAddressObject(&contact, userID), nil
 }
 
 func (b *CardDAVBackend) ListAddressObjects(ctx context.Context, path string, _ *carddav.AddressDataRequest) ([]carddav.AddressObject, error) {
@@ -162,7 +170,7 @@ func (b *CardDAVBackend) ListAddressObjects(ctx context.Context, path string, _ 
 
 	objects := make([]carddav.AddressObject, 0, len(contacts))
 	for i := range contacts {
-		objects = append(objects, *contactToAddressObject(&contacts[i], userID))
+		objects = append(objects, *b.contactToAddressObject(&contacts[i], userID))
 	}
 	return objects, nil
 }
@@ -238,7 +246,7 @@ func (b *CardDAVBackend) PutAddressObject(ctx context.Context, path string, card
 			}
 
 			b.db.Preload("ContactInformations.ContactInformationType").First(&contact, "id = ?", contact.ID)
-			return contactToAddressObject(&contact, userID), nil
+			return b.contactToAddressObject(&contact, userID), nil
 		}
 	}
 
@@ -268,7 +276,7 @@ func (b *CardDAVBackend) PutAddressObject(ctx context.Context, path string, card
 	}
 
 	b.db.Preload("ContactInformations.ContactInformationType").First(&contact, "id = ?", contact.ID)
-	return contactToAddressObject(&contact, userID), nil
+	return b.contactToAddressObject(&contact, userID), nil
 }
 
 func (b *CardDAVBackend) DeleteAddressObject(ctx context.Context, path string) error {
@@ -307,8 +315,13 @@ func (b *CardDAVBackend) verifyVaultAccess(userID, vaultID string) error {
 }
 
 // contactToAddressObject converts a Contact model to a CardDAV AddressObject.
-func contactToAddressObject(c *models.Contact, userID string) *carddav.AddressObject {
-	card := contactToVCard(c)
+func (b *CardDAVBackend) contactToAddressObject(c *models.Contact, userID string) *carddav.AddressObject {
+	card, err := b.vCardService.ExportContactToVCard(c.ID, c.VaultID)
+	if err != nil {
+		// Fallback to basic conversion if export fails
+		card = contactToVCard(c)
+	}
+
 	return &carddav.AddressObject{
 		Path:    "/dav/addressbooks/" + userID + "/" + c.VaultID + "/" + c.ID + ".vcf",
 		ModTime: c.UpdatedAt,

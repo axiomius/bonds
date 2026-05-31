@@ -3,11 +3,13 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	echoSwagger "github.com/swaggo/echo-swagger"
 
 	"github.com/naiba/bonds/internal/config"
+	"github.com/naiba/bonds/internal/dav"
 	internalmcp "github.com/naiba/bonds/internal/mcp"
 	"github.com/naiba/bonds/internal/middleware"
 	"github.com/naiba/bonds/internal/models"
@@ -62,7 +64,7 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, cfg *config.Config, version strin
 	notificationService := services.NewNotificationService(db)
 	personalizeService := services.NewPersonalizeService(db)
 	twoFactorService := services.NewTwoFactorService(db)
-	vcardService := services.NewVCardService(db)
+	vcardService := services.NewVCardService(db, vaultFileService)
 	contactLabelService := services.NewContactLabelService(db)
 	contactReligionService := services.NewContactReligionService(db)
 	contactJobService := services.NewContactJobService(db)
@@ -782,4 +784,6 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, cfg *config.Config, version strin
 	e.POST("/mcp", mcpHandler.Handle, mcpMiddleware...)
 	e.GET("/mcp", mcpHandler.MethodNotAllowed, mcpMiddleware...)
 	e.DELETE("/mcp", mcpHandler.MethodNotAllowed, mcpMiddleware...)
+
+	dav.SetupDAVRoutes(e, db, vcardService)
 }

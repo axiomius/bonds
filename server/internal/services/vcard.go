@@ -2,9 +2,12 @@ package services
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,11 +21,18 @@ import (
 var ErrVCardInvalidData = errors.New("invalid vcard data")
 
 type VCardService struct {
-	db *gorm.DB
+	db               *gorm.DB
+	vaultFileService *VaultFileService
 }
 
-func NewVCardService(db *gorm.DB) *VCardService {
-	return &VCardService{db: db}
+func NewVCardService(
+	db *gorm.DB,
+	vaultFileService *VaultFileService,
+) *VCardService {
+	return &VCardService{
+		db:               db,
+		vaultFileService: vaultFileService,
+	}
 }
 
 func (s *VCardService) ExportContactToVCard(contactID, vaultID string) (vcard.Card, error) {
@@ -45,33 +55,25 @@ func (s *VCardService) ExportContactToVCard(contactID, vaultID string) (vcard.Ca
 		s.db.Where("id IN ?", addressIDs).Find(&addresses)
 	}
 
-	return buildVCard(&contact, contactInfos, addresses), nil
+	var profilePicture []byte
+	if contact.FileID != nil {
+		file, err := s.vaultFileService.Get(*contact.FileID, contact.VaultID)
+		if err == nil && file.MimeType == "image/jpeg" {
+			data, err := os.ReadFile(filepath.Join(s.vaultFileService.UploadDir(), file.UUID))
+			if err == nil {
+				profilePicture = data
+			}
+		}
+	}
+
+	return buildVCard(&contact, contactInfos, addresses, profilePicture), nil
 }
 
 func (s *VCardService) ExportContact(contactID string, vaultID string) ([]byte, error) {
-	var contact models.Contact
-	if err := s.db.Where("id = ? AND vault_id = ?", contactID, vaultID).First(&contact).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrContactNotFound
-		}
+	card, err := s.ExportContactToVCard(contactID, vaultID)
+	if err != nil {
 		return nil, err
 	}
-
-	var contactInfos []models.ContactInformation
-	s.db.Preload("ContactInformationType").Where("contact_id = ?", contactID).Find(&contactInfos)
-
-	var addresses []models.Address
-	var pivots []models.ContactAddress
-	s.db.Where("contact_id = ?", contactID).Find(&pivots)
-	if len(pivots) > 0 {
-		addressIDs := make([]uint, len(pivots))
-		for i, p := range pivots {
-			addressIDs[i] = p.AddressID
-		}
-		s.db.Where("id IN ?", addressIDs).Find(&addresses)
-	}
-
-	card := buildVCard(&contact, contactInfos, addresses)
 
 	var buf bytes.Buffer
 	enc := vcard.NewEncoder(&buf)
@@ -92,21 +94,11 @@ func (s *VCardService) ExportVault(vaultID string) ([]byte, error) {
 	enc := vcard.NewEncoder(&buf)
 
 	for _, contact := range contacts {
-		var contactInfos []models.ContactInformation
-		s.db.Preload("ContactInformationType").Where("contact_id = ?", contact.ID).Find(&contactInfos)
-
-		var addresses []models.Address
-		var pivots []models.ContactAddress
-		s.db.Where("contact_id = ?", contact.ID).Find(&pivots)
-		if len(pivots) > 0 {
-			addressIDs := make([]uint, len(pivots))
-			for i, p := range pivots {
-				addressIDs[i] = p.AddressID
-			}
-			s.db.Where("id IN ?", addressIDs).Find(&addresses)
+		card, err := s.ExportContactToVCard(contact.ID, vaultID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to export contact %s to vcard: %w", contact.ID, err)
 		}
 
-		card := buildVCard(&contact, contactInfos, addresses)
 		if err := enc.Encode(card); err != nil {
 			return nil, fmt.Errorf("failed to encode vcard for contact %s: %w", contact.ID, err)
 		}
@@ -314,7 +306,7 @@ func parseBirthdayString(bday string) (year, month, day int) {
 	return 0, 0, 0
 }
 
-func buildVCard(contact *models.Contact, infos []models.ContactInformation, addresses []models.Address) vcard.Card {
+func buildVCard(contact *models.Contact, infos []models.ContactInformation, addresses []models.Address, profilePicture []byte) vcard.Card {
 	card := make(vcard.Card)
 	card.SetValue(vcard.FieldVersion, "3.0")
 
@@ -360,6 +352,19 @@ func buildVCard(contact *models.Contact, infos []models.ContactInformation, addr
 			Region:        ptrToStr(addr.Province),
 			PostalCode:    ptrToStr(addr.PostalCode),
 			Country:       ptrToStr(addr.Country),
+		})
+	}
+
+	// Obtain profile picture and encode it if necessary
+	if profilePicture != nil {
+		encoded := base64.StdEncoding.EncodeToString(profilePicture)
+
+		card.Add(vcard.FieldPhoto, &vcard.Field{
+			Value: encoded,
+			Params: vcard.Params{
+				"ENCODING": []string{"b"},
+				"TYPE":     []string{"JPEG"},
+			},
 		})
 	}
 

@@ -7,12 +7,13 @@ import (
 	"github.com/emersion/go-webdav/caldav"
 	"github.com/emersion/go-webdav/carddav"
 	"github.com/labstack/echo/v4"
+	"github.com/naiba/bonds/internal/services"
 	"gorm.io/gorm"
 )
 
 // SetupDAVRoutes registers CardDAV and CalDAV routes on the Echo instance.
-func SetupDAVRoutes(e *echo.Echo, db *gorm.DB) {
-	cardBackend := NewCardDAVBackend(db)
+func SetupDAVRoutes(e *echo.Echo, db *gorm.DB, vCardService *services.VCardService) {
+	cardBackend := NewCardDAVBackend(db, vCardService)
 	calBackend := NewCalDAVBackend(db)
 
 	cardHandler := &carddav.Handler{Backend: cardBackend, Prefix: "/dav"}
