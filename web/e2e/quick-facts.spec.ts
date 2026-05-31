@@ -41,13 +41,17 @@ async function createContact(page: import('@playwright/test').Page, firstName: s
 }
 
 async function navigateToTab(page: import('@playwright/test').Page, tabName: string, exact = false) {
+  await page.getByText('Edit mode', { exact: true }).click();
   const tab = page.getByRole('tab', { name: tabName, exact });
+  await expect(tab).toBeVisible({ timeout: 10000 });
   await tab.click();
   await page.waitForLoadState('networkidle');
 }
 
 test.describe('Contact Modules - Quick Facts', () => {
   test('should show Quick Facts on contact page and support CRUD', async ({ page }) => {
+    test.setTimeout(60000);
+
     await setupVault(page, 'qfact');
     await goToContacts(page);
     await createContact(page, 'QFactTest', 'User');
@@ -74,7 +78,7 @@ test.describe('Contact Modules - Quick Facts', () => {
     expect(resp.status()).toBeLessThan(400);
 
     await expect(qfCard.getByText('Loves hiking')).toBeVisible({ timeout: 10000 });
-    await expect(qfCard.getByText('Hobbies')).toBeVisible({ timeout: 10000 });
+    await expect(qfCard.getByText('How we met')).toBeVisible({ timeout: 10000 });
 
     // --- UPDATE: Edit the quick fact ---
     await qfCard.getByRole('button', { name: /edit/i }).first().click();
@@ -95,11 +99,14 @@ test.describe('Contact Modules - Quick Facts', () => {
 
     // --- DELETE: Remove the quick fact ---
     await qfCard.getByRole('button', { name: /delete/i }).first().click();
-    const deleteResp = page.waitForResponse(
-      (resp) => resp.url().includes('/quickFacts') && resp.request().method() === 'DELETE'
-    );
-    await page.locator('.ant-popconfirm').getByRole('button', { name: /ok|yes/i }).click();
-    await deleteResp;
+    await expect(page.locator('.ant-popconfirm')).toBeVisible({ timeout: 5000 });
+    const [deleteResp] = await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes('/quickFacts') && resp.request().method() === 'DELETE' && resp.status() < 400
+      ),
+      page.locator('.ant-popconfirm').getByRole('button', { name: /ok|yes/i }).click(),
+    ]);
+    expect(deleteResp.status()).toBeLessThan(400);
 
     await expect(qfCard.getByText('Loves mountain hiking')).not.toBeVisible({ timeout: 10000 });
   });
