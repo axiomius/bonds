@@ -5,6 +5,7 @@ import "time"
 type PreferencesResponse struct {
 	NameOrder                 string `json:"name_order" example:"%first_name% %last_name%"`
 	DateFormat                string `json:"date_format" example:"YYYY-MM-DD"`
+	WeekStart                 string `json:"week_start" example:"sunday"`
 	Timezone                  string `json:"timezone" example:"America/New_York"`
 	Locale                    string `json:"locale" example:"en"`
 	NumberFormat              string `json:"number_format" example:"1,234.56"`
@@ -36,6 +37,7 @@ type UpdateLocaleRequest struct {
 type UpdatePreferencesRequest struct {
 	NameOrder                 string `json:"name_order" example:"%first_name% %last_name%"`
 	DateFormat                string `json:"date_format" example:"YYYY-MM-DD"`
+	WeekStart                 string `json:"week_start" example:"sunday"`
 	Timezone                  string `json:"timezone" example:"America/New_York"`
 	Locale                    string `json:"locale" example:"en"`
 	NumberFormat              string `json:"number_format" example:"1,234.56"`

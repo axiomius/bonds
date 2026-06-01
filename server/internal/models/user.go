@@ -28,6 +28,7 @@ type User struct {
 	NameOrder                 string     `json:"name_order" gorm:"default:'%first_name% %last_name%'"`
 	ContactSortOrder          string     `json:"contact_sort_order" gorm:"default:'last_updated'"`
 	DateFormat                string     `json:"date_format" gorm:"default:'MMM DD, YYYY'"`
+	WeekStart                 string     `json:"week_start" gorm:"size:8;default:'sunday'"`
 	NumberFormat              string     `json:"number_format" gorm:"size:8;default:'locale'"`
 	DistanceFormat            string     `json:"distance_format" gorm:"default:'miles'"`
 	Timezone                  *string    `json:"timezone"`

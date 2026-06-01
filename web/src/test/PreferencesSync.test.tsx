@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import i18n from "@/i18n";
+import dayjs from "dayjs";
+import i18n, { applyDayjsWeekStart } from "@/i18n";
 import { usePreferencesSync } from "@/hooks/usePreferencesSync";
 
 // Mock the API surface — the hook gates the query on user being present,
@@ -32,10 +33,12 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe("usePreferencesSync", () => {
   beforeEach(async () => {
+    applyDayjsWeekStart("sunday");
     await i18n.changeLanguage("en");
     vi.mocked(api.preferences.preferencesList).mockReset();
   });
   afterEach(async () => {
+    applyDayjsWeekStart("sunday");
     await i18n.changeLanguage("en");
   });
 
@@ -90,5 +93,17 @@ describe("usePreferencesSync", () => {
     // normalizeLanguageCode collapses "ja" → "en"; since i18n was already
     // "en" no language change should fire.
     expect(i18n.language).toBe("en");
+  });
+
+  it("applies the saved week start preference to dayjs", async () => {
+    vi.mocked(api.preferences.preferencesList).mockResolvedValue({
+      data: { locale: "en", week_start: "monday" },
+    } as never);
+
+    renderHook(() => usePreferencesSync(), { wrapper });
+
+    await waitFor(() => {
+      expect(dayjs("2026-01-15").startOf("week").format("YYYY-MM-DD")).toBe("2026-01-12");
+    });
   });
 });

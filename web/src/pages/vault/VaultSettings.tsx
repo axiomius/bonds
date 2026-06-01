@@ -50,6 +50,7 @@ import type {
   GithubComNaibaBondsInternalDtoCSVImportResponse,
 } from "@/api/generated/data-contracts";
 import VaultCompanies from "./VaultCompanies";
+import { getReadableLabelTagColors } from "@/utils/labelColor";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -469,25 +470,28 @@ export default function VaultSettings() {
           <List<LabelResponse>
             loading={isLoading}
             dataSource={items as LabelResponse[]}
-            renderItem={(item) => (
-              <List.Item
-                actions={[
-                  <Button icon={<EditOutlined />} onClick={() => startEdit(item)} />,
-                  <Popconfirm title={t("common.delete_confirm")} onConfirm={() => deleteMutation.mutate(item.id!)}>
-                    <Button danger icon={<DeleteOutlined />} />
-                  </Popconfirm>,
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={
-                    <Tag color={item.bg_color} style={{ color: item.text_color }}>
-                      {item.name}
-                    </Tag>
-                  }
-                  description={item.description}
-                />
-              </List.Item>
-            )}
+            renderItem={(item) => {
+              const labelTagColors = getReadableLabelTagColors(item.bg_color, item.text_color);
+              return (
+                <List.Item
+                  actions={[
+                    <Button icon={<EditOutlined />} onClick={() => startEdit(item)} />,
+                    <Popconfirm title={t("common.delete_confirm")} onConfirm={() => deleteMutation.mutate(item.id!)}>
+                      <Button danger icon={<DeleteOutlined />} />
+                    </Popconfirm>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <Tag color={labelTagColors.color} style={labelTagColors.style}>
+                        {item.name}
+                      </Tag>
+                    }
+                    description={item.description}
+                  />
+                </List.Item>
+              );
+            }}
           />
         </Card>
       </Space>

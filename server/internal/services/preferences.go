@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrInvalidNameOrder = errors.New("name_order must contain at least one variable like %first_name%")
+	ErrInvalidWeekStart = errors.New("week_start must be sunday or monday")
 
 	// ErrUnsupportedLocale is returned when a caller tries to persist a locale
 	// code that the embedded i18n bundle does not load. Without this guard the
@@ -52,6 +53,7 @@ func (s *PreferenceService) Get(userID string) (*dto.PreferencesResponse, error)
 	return &dto.PreferencesResponse{
 		NameOrder:                 user.NameOrder,
 		DateFormat:                user.DateFormat,
+		WeekStart:                 normalizedWeekStart(user.WeekStart),
 		Timezone:                  tz,
 		Locale:                    user.Locale,
 		NumberFormat:              user.NumberFormat,
@@ -137,6 +139,12 @@ func (s *PreferenceService) UpdateAll(userID string, req dto.UpdatePreferencesRe
 	if req.DateFormat != "" {
 		updates["date_format"] = req.DateFormat
 	}
+	if req.WeekStart != "" {
+		if !isValidWeekStart(req.WeekStart) {
+			return nil, ErrInvalidWeekStart
+		}
+		updates["week_start"] = req.WeekStart
+	}
 	if req.Timezone != "" {
 		updates["timezone"] = req.Timezone
 	}
@@ -168,4 +176,15 @@ func (s *PreferenceService) UpdateAll(userID string, req dto.UpdatePreferencesRe
 		return nil, err
 	}
 	return s.Get(userID)
+}
+
+func isValidWeekStart(weekStart string) bool {
+	return weekStart == "sunday" || weekStart == "monday"
+}
+
+func normalizedWeekStart(weekStart string) string {
+	if isValidWeekStart(weekStart) {
+		return weekStart
+	}
+	return "sunday"
 }

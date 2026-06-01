@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import dayjs from "dayjs";
+import updateLocale from "dayjs/plugin/updateLocale";
 import "dayjs/locale/zh-cn";
 import "dayjs/locale/es";
 import "dayjs/locale/fr";
@@ -43,6 +44,17 @@ const DAYJS_LOCALES: Record<SupportedLanguageCode, string> = {
   fr: "fr",
 };
 
+dayjs.extend(updateLocale);
+
+export type WeekStartPreference = "sunday" | "monday";
+
+export function applyDayjsWeekStart(weekStart: WeekStartPreference | string | undefined) {
+  const firstDay = weekStart === "monday" ? 1 : 0;
+  for (const localeName of Object.values(DAYJS_LOCALES)) {
+    dayjs.updateLocale(localeName, { weekStart: firstDay });
+  }
+}
+
 function syncDayjsLocale(code: string) {
   dayjs.locale(DAYJS_LOCALES[normalizeLanguageCode(code)]);
 }
@@ -67,6 +79,7 @@ i18n
 // relative-time strings, etc. stay in step with the active language. Without
 // this listener, switching from English to 中文 leaves dayjs stuck on English
 // until the page reloads.
+applyDayjsWeekStart("sunday");
 syncDayjsLocale(i18n.language);
 i18n.on("languageChanged", syncDayjsLocale);
 

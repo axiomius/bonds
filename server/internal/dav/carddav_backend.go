@@ -2,6 +2,7 @@ package dav
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -232,6 +233,10 @@ func (b *CardDAVBackend) PutAddressObject(ctx context.Context, path string, card
 	if contactID != "" {
 		err := b.db.First(&contact, "id = ?", contactID).Error
 		if err == nil {
+			// A global object ID must still belong to the DAV collection vault; otherwise a guessed ID could overwrite another vault's contact.
+			if contact.VaultID != vaultID {
+				return nil, webdav.NewHTTPError(http.StatusNotFound, fmt.Errorf("address object not found"))
+			}
 			contact.FirstName = strPtrOrNil(firstName)
 			contact.LastName = strPtrOrNil(lastName)
 			contact.Nickname = strPtrOrNil(nickname)
@@ -247,6 +252,9 @@ func (b *CardDAVBackend) PutAddressObject(ctx context.Context, path string, card
 
 			b.db.Preload("ContactInformations.ContactInformationType").First(&contact, "id = ?", contact.ID)
 			return b.contactToAddressObject(&contact, userID), nil
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
 		}
 	}
 

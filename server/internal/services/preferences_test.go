@@ -42,6 +42,9 @@ func TestPreferenceGet(t *testing.T) {
 	if prefs.NameOrder == "" {
 		t.Error("Expected name_order to be non-empty")
 	}
+	if prefs.WeekStart != "sunday" {
+		t.Errorf("Expected week_start to default to sunday, got %q", prefs.WeekStart)
+	}
 }
 
 func TestPreferenceUpdateSingleField(t *testing.T) {
@@ -107,6 +110,7 @@ func TestPreferenceUpdateAll(t *testing.T) {
 		DateFormat: "DD/MM/YYYY",
 		Timezone:   "Asia/Shanghai",
 		Locale:     "zh",
+		WeekStart:  "monday",
 	})
 	if err != nil {
 		t.Fatalf("UpdateAll failed: %v", err)
@@ -122,6 +126,9 @@ func TestPreferenceUpdateAll(t *testing.T) {
 	}
 	if prefs.Locale != "zh" {
 		t.Errorf("Expected locale 'zh', got '%s'", prefs.Locale)
+	}
+	if prefs.WeekStart != "monday" {
+		t.Errorf("Expected week_start 'monday', got '%s'", prefs.WeekStart)
 	}
 }
 
@@ -253,5 +260,24 @@ func TestPreferenceUpdateAllRejectsInvalidNameOrder(t *testing.T) {
 	}
 	if prefs.NameOrder != "%last_name%, %first_name%" {
 		t.Errorf("Expected '%%last_name%%, %%first_name%%', got '%s'", prefs.NameOrder)
+	}
+}
+
+func TestPreferenceUpdateAllRejectsInvalidWeekStart(t *testing.T) {
+	svc, userID := setupPreferenceTest(t)
+
+	_, err := svc.UpdateAll(userID, dto.UpdatePreferencesRequest{
+		WeekStart: "friday",
+	})
+	if err == nil {
+		t.Error("Expected error for invalid week_start, got nil")
+	}
+
+	prefs, err := svc.Get(userID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if prefs.WeekStart != "sunday" {
+		t.Errorf("Expected week_start to remain sunday, got %q", prefs.WeekStart)
 	}
 }
