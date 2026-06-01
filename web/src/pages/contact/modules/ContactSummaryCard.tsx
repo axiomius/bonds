@@ -5,6 +5,10 @@ import { api } from "@/api";
 import type { Contact } from "@/api";
 import { useTranslation } from "react-i18next";
 import { formatContactName, useNameOrder } from "@/utils/nameFormat";
+import { getReadableLabelTagColors } from "@/utils/labelColor";
+import type { ImportantDate, ImportantDateTypeResponse } from "@/api";
+import { useDateFormat } from "@/utils/dateFormat";
+import { computeAgeAtImportantDate, computeImportantDateAge, formatImportantDateDisplay } from "@/utils/importantDateDisplay";
 
 const { Text } = Typography;
 

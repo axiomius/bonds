@@ -17,6 +17,7 @@ import { api } from "@/api";
 import { useTranslation } from "react-i18next";
 import type { APIError } from "@/api";
 import { Link } from "react-router-dom";
+import { getReadableLabelTagColors } from "@/utils/labelColor";
 
 const { Title, Text } = Typography;
 
@@ -141,32 +142,35 @@ export default function LabelsModule({ vaultId, contactId }: LabelsModuleProps) 
       ) : (
         <Space size={[8, 8]} wrap>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {labels.map((label: any) => (
-            <Tag
-              key={label.id}
-              color={label.bg_color || "default"}
-              style={{
-                margin: 0,
-                color: label.text_color,
-                fontSize: 14,
-                padding: "4px 10px",
-                borderRadius: 16,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              {label.name}
-              <EditOutlined
-                style={{ cursor: "pointer", opacity: 0.6 }}
-                onClick={() => setEditingLabel({ id: label.id, label_id: label.label_id })}
-              />
-              <DeleteOutlined
-                style={{ cursor: "pointer", opacity: 0.6 }}
-                onClick={() => removeMutation.mutate(label.id)}
-              />
-            </Tag>
-          ))}
+          {labels.map((label: any) => {
+            const labelTagColors = getReadableLabelTagColors(label.bg_color, label.text_color);
+            return (
+              <Tag
+                key={label.id}
+                color={labelTagColors.color}
+                style={{
+                  ...labelTagColors.style,
+                  margin: 0,
+                  fontSize: 14,
+                  padding: "4px 10px",
+                  borderRadius: 16,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {label.name}
+                <EditOutlined
+                  style={{ cursor: "pointer", opacity: 0.6 }}
+                  onClick={() => setEditingLabel({ id: label.id, label_id: label.label_id })}
+                />
+                <DeleteOutlined
+                  style={{ cursor: "pointer", opacity: 0.6 }}
+                  onClick={() => removeMutation.mutate(label.id)}
+                />
+              </Tag>
+            );
+          })}
         </Space>
       )}
 
