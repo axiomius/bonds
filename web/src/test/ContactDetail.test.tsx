@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { App as AntApp, ConfigProvider } from "antd";
 import ContactDetail from "@/pages/contact/ContactDetail";
 
@@ -12,6 +12,11 @@ beforeAll(() => {
     disconnect() {}
   };
 });
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+}
 
 vi.mock("@/pages/contact/modules/NotesModule", () => ({
   default: ({ readOnly }: { readOnly?: boolean }) => <div>NotesModule:{readOnly ? "read" : "edit"}</div>,
@@ -84,7 +89,6 @@ vi.mock("@/api/contacts", () => ({
   },
 }));
 
-// Mock @/api to prevent real HTTP calls (AvatarImageLoader uses httpClient.instance.get directly)
 vi.mock("@/api", () => ({
   api: {
     contacts: {
@@ -119,7 +123,6 @@ const defaultQuery = { data: undefined, isLoading: false };
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: Record<string, unknown>) => {
     const key = Array.isArray(opts?.queryKey) ? opts.queryKey : [];
-    // Contact detail query: ["vaults", ..., "contacts", cId]
     if (key.includes("contacts") && !key.includes("tabs")) {
       return mockContactQuery(opts);
     }
@@ -134,16 +137,20 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useParams: () => ({ id: "1", contactId: "2" }),
-    useNavigate: () => vi.fn(),
+    useNavigate: () => {
+      const { useNavigate } = actual as any;
+      return useNavigate();
+    },
   };
 });
 
-function renderContactDetail() {
+function renderContactDetail(initialUrl = "/vaults/1/contacts/2") {
   return render(
     <ConfigProvider>
       <AntApp>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[initialUrl]}>
           <ContactDetail />
+          <LocationProbe />
         </MemoryRouter>
       </AntApp>
     </ConfigProvider>,
@@ -188,8 +195,6 @@ describe("ContactDetail", () => {
     expect(
       screen.getByRole("button", { name: /favorite/i }),
     ).toBeInTheDocument();
-    // Archive button is now inside the More dropdown, not directly visible
-    // Test that More dropdown trigger exists instead
     expect(
       screen.getByRole("button", { name: /more/i }),
     ).toBeInTheDocument();
@@ -210,5 +215,20 @@ describe("ContactDetail", () => {
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(screen.getByText("Relationships")).toBeInTheDocument();
     expect(screen.getByText("Information")).toBeInTheDocument();
+  });
+
+  it("preserves pagination parameters when clicking the back button", async () => {
+    const user = userEvent.setup();
+    mockContactQuery.mockReturnValue({ data: mockContact, isLoading: false });
+    
+    renderContactDetail("/vaults/1/contacts/2?page=3&per_page=50");
+    
+    // There are actually multiple back buttons, so we target the first one or the one with specific icon
+    const backButtons = await screen.findAllByRole("button", { name: /left/i });
+    await user.click(backButtons[0]);
+    
+    await waitFor(() => {
+      expect(screen.getByTestId("location-probe")).toHaveTextContent("/vaults/1/contacts?page=3&per_page=50");
+    });
   });
 });
