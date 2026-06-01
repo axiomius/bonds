@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { App as AntApp, ConfigProvider } from "antd";
 import ContactList from "@/pages/contact/ContactList";
+import type { Contact, PaginationMeta } from "@/api";
 
 beforeAll(() => {
   globalThis.ResizeObserver = class {
@@ -47,6 +48,27 @@ vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
+function mockContactListQuery(contacts: Contact[] = [], meta: PaginationMeta = { total: contacts.length }) {
+  mockUseQuery.mockImplementation((opts) => {
+    const key = Array.isArray(opts?.queryKey) ? opts.queryKey : [];
+    if (key.includes("labels")) {
+      return { data: [], isLoading: false };
+    }
+    if (key[0] === "vaults" && key[2] === "contacts") {
+      return { data: { contacts, meta }, isLoading: false };
+    }
+    return { data: undefined, isLoading: false };
+  });
+}
+
+function getContactsQueryKey() {
+  const call = mockUseQuery.mock.calls.find(([opts]) => {
+    const key = Array.isArray(opts?.queryKey) ? opts.queryKey : [];
+    return key[0] === "vaults" && key[2] === "contacts";
+  });
+  return call?.[0]?.queryKey as unknown[] | undefined;
+}
+
 function renderContactList(initialUrl = "/vaults/1/contacts") {
   return render(
     <ConfigProvider>
@@ -74,7 +96,7 @@ function renderContactList(initialUrl = "/vaults/1/contacts") {
 describe("ContactList", () => {
   beforeEach(() => {
     mockUseQuery.mockReset();
-    mockUseQuery.mockReturnValue({ data: undefined, isLoading: false });
+    mockContactListQuery();
   });
 
   it("renders loading state", () => {
@@ -84,23 +106,13 @@ describe("ContactList", () => {
   }, 15000);
 
   it("renders empty state", () => {
-    mockUseQuery.mockImplementation((opts) => {
-      if (Array.isArray(opts?.queryKey) && opts.queryKey.includes("labels")) {
-        return { data: [], isLoading: false };
-      }
-      return { data: { data: [], meta: { pagination: { current_page: 1, last_page: 1, total: 0, per_page: 20 } } }, isLoading: false };
-    });
+    mockContactListQuery();
     renderContactList();
     expect(screen.getByText("No contacts yet")).toBeInTheDocument();
   });
 
   it("renders search input", () => {
-    mockUseQuery.mockImplementation((opts) => {
-      if (Array.isArray(opts?.queryKey) && opts.queryKey.includes("labels")) {
-        return { data: [], isLoading: false };
-      }
-      return { data: { data: [], meta: { pagination: { current_page: 1, last_page: 1, total: 0, per_page: 20 } } }, isLoading: false };
-    });
+    mockContactListQuery();
     renderContactList();
     expect(
       screen.getByPlaceholderText("Quick search"),
@@ -109,61 +121,77 @@ describe("ContactList", () => {
 
   it("reads page and per_page from URL query parameters", () => {
     renderContactList("/vaults/1/contacts?page=3&per_page=50");
-    
-    expect(mockUseQuery).toHaveBeenCalledWith(
-      expect.objectContaining({
-        queryKey: expect.arrayContaining([
-          expect.objectContaining({ page: 3, per_page: 50 })
-        ]),
-      })
-    );
+
+    expect(getContactsQueryKey()).toEqual([
+      "vaults",
+      "1",
+      "contacts",
+      null,
+      3,
+      50,
+      "name",
+      "",
+      "active",
+    ]);
+  });
+
+  it("falls back to default pagination when URL query values are invalid", () => {
+    renderContactList("/vaults/1/contacts?page=abc&per_page=0");
+
+    expect(getContactsQueryKey()).toEqual([
+      "vaults",
+      "1",
+      "contacts",
+      null,
+      1,
+      20,
+      "name",
+      "",
+      "active",
+    ]);
   });
 
   it("updates URL when pagination changes", async () => {
     const user = userEvent.setup();
-    mockUseQuery.mockImplementation((opts) => {
-      if (Array.isArray(opts?.queryKey) && opts.queryKey.includes("labels")) {
-        return { data: [], isLoading: false };
-      }
-      return { 
-        data: { 
-          data: Array.from({ length: 20 }).map((_, i) => ({ id: i + 1, first_name: `User ${i}` })), 
-          meta: { pagination: { current_page: 1, last_page: 3, total: 60, per_page: 20 } } 
-        }, 
-        isLoading: false 
-      };
-    });
-    
+    mockContactListQuery(
+      Array.from({ length: 20 }).map((_, i) => ({
+        id: String(i + 1),
+        first_name: `User ${i + 1}`,
+        last_name: "Example",
+        updated_at: "2024-06-01T00:00:00Z",
+      })),
+      { total: 60 },
+    );
+
     renderContactList("/vaults/1/contacts");
-    
-    const page2Button = await screen.findByRole("button", { name: "2" });
+
+    const page2Button = document.querySelector<HTMLElement>(".ant-pagination-item-2 a");
+    expect(page2Button).toBeInTheDocument();
+    if (!page2Button) throw new Error("Page 2 pagination link was not rendered");
     await user.click(page2Button);
-    
+
     await waitFor(() => {
-      expect(screen.getByTestId("location-probe")).toHaveTextContent("/vaults/1/contacts?page=2");
+      expect(screen.getByTestId("location-probe")).toHaveTextContent("/vaults/1/contacts?page=2&per_page=20");
     });
   });
 
   it("preserves pagination query parameters when navigating to a contact", async () => {
     const user = userEvent.setup();
-    mockUseQuery.mockImplementation((opts) => {
-      if (Array.isArray(opts?.queryKey) && opts.queryKey.includes("labels")) {
-        return { data: [], isLoading: false };
-      }
-      return { 
-        data: { 
-          data: [{ id: 42, first_name: "Test User" }], 
-          meta: { pagination: { current_page: 3, last_page: 5, total: 100, per_page: 50 } } 
-        }, 
-        isLoading: false 
-      };
-    });
-    
+    mockContactListQuery(
+      [{
+        id: "42",
+        first_name: "Test",
+        last_name: "User",
+        updated_at: "2024-06-01T00:00:00Z",
+      }],
+      { total: 100 },
+    );
+
     renderContactList("/vaults/1/contacts?page=3&per_page=50");
-    
+
     const contactRow = await screen.findByText("Test User");
     await user.click(contactRow);
-    
+
     await waitFor(() => {
       expect(screen.getByTestId("location-probe")).toHaveTextContent("/vaults/1/contacts/42?page=3&per_page=50");
     });
