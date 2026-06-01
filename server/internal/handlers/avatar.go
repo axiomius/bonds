@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"net/http"
 	"path/filepath"
-	
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/naiba/bonds/internal/dto"
@@ -13,6 +14,7 @@ import (
 	"github.com/naiba/bonds/internal/utils"
 	"github.com/naiba/bonds/pkg/avatar"
 	"github.com/naiba/bonds/pkg/response"
+	"github.com/sunshineplan/imgconv"
 	"gorm.io/gorm"
 )
 
@@ -96,19 +98,59 @@ func (h *AvatarHandler) UpdateAvatar(c echo.Context) error {
 		return response.BadRequest(c, "err.file_type_not_allowed", nil)
 	}
 
+	authorID := middleware.GetUserID(c)
+
+	// If the mime type is not jpeg, we store a separate version of the avatar in the jpeg format for compatibility with
+	// Apple Contacts, which only supports jpeg avatars. We can still store the original file as well, so that we can display
+	// it in the app and allow users to download it in the original format if they want.
+	// In the future it might also be worth scaling the avatar to a reasonable size if it's too large, but for now we'll just
+	// convert it to jpeg without resizing.
+	if mimeType != "image/jpeg" {
+		// Open the uploaded file for reading
+		src, err := fileHeader.Open()
+		if err != nil {
+			return response.InternalError(c, "err.failed_to_read_file")
+		}
+		defer src.Close()
+		// Now, convert to jpeg as Apple Contacts only supports jpeg avatars.
+		img, err := imgconv.Decode(src)
+		if err != nil {
+			return response.InternalError(c, "err.failed_to_decode_file")
+		}
+		var jpegAvatarData bytes.Buffer
+		if err := imgconv.Write(&jpegAvatarData, img, &imgconv.FormatOption{
+			Format: imgconv.JPEG,
+		}); err != nil {
+			return response.InternalError(c, "err.failed_to_convert_file")
+		}
+		// Upload the jpeg version as well, with a different filename and type.
+		jpegAvatar, err := h.vaultFileService.Upload(vaultID, contactID, authorID, "avatar", fileHeader.Filename+".jpg", "image/jpeg", int64(jpegAvatarData.Len()), &jpegAvatarData)
+		if err != nil {
+			return response.InternalError(c, "err.failed_to_upload_file")
+		}
+		contact.OptimizedAvatarFileID = &jpegAvatar.ID
+	}
+
 	src, err := fileHeader.Open()
 	if err != nil {
 		return response.InternalError(c, "err.failed_to_read_file")
 	}
 	defer src.Close()
-
-	authorID := middleware.GetUserID(c)
 	file, err := h.vaultFileService.Upload(vaultID, contactID, authorID, "avatar", fileHeader.Filename, mimeType, fileHeader.Size, src)
 	if err != nil {
 		return response.InternalError(c, "err.failed_to_upload_file")
 	}
 
 	contact.FileID = &file.ID
+	if contact.OptimizedAvatarFileID == nil {
+		// This covers the case where the uploaded file is already a jpeg, so we don't need to create a separate jpeg version. In this case we can just use the original file as the avatar.
+		contact.OptimizedAvatarFileID = &file.ID
+	}
+
+	// Ensure that clients receive the updated avatar.
+	now := time.Now()
+	contact.LastUpdatedAt = &now
+
 	if err := h.db.Save(&contact).Error; err != nil {
 		return response.InternalError(c, "err.failed_to_update_avatar")
 	}
@@ -138,7 +180,10 @@ func (h *AvatarHandler) DeleteAvatar(c echo.Context) error {
 		return response.NotFound(c, "err.contact_not_found")
 	}
 
+	// TODO: Shouldn't this delete the avatar (and now also the jpeg version) from storage as well?
+
 	contact.FileID = nil
+	contact.OptimizedAvatarFileID = nil
 	if err := h.db.Save(&contact).Error; err != nil {
 		return response.InternalError(c, "err.failed_to_delete_avatar")
 	}

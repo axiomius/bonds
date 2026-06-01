@@ -81,6 +81,9 @@ func main() {
 	if err := models.BackfillHowWeMetQuickFactTemplates(db); err != nil {
 		log.Printf("WARNING: failed to backfill how-we-met quick fact templates: %v", err)
 	}
+	if err := models.BackfillOptimizedAvatarFileID(db, &cfg.Storage.UploadDir); err != nil {
+		log.Printf("WARNING: failed to backfill optimized avatar file IDs: %v", err)
+	}
 
 	scheduler := cron.NewScheduler(db)
 	scheduler.Start()

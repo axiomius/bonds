@@ -56,8 +56,9 @@ func (s *VCardService) ExportContactToVCard(contactID, vaultID string) (vcard.Ca
 	}
 
 	var profilePicture []byte
-	if contact.FileID != nil {
-		file, err := s.vaultFileService.Get(*contact.FileID, contact.VaultID)
+
+	if contact.OptimizedAvatarFileID != nil {
+		file, err := s.vaultFileService.Get(*contact.OptimizedAvatarFileID, contact.VaultID)
 		if err == nil && file.MimeType == "image/jpeg" {
 			data, err := os.ReadFile(filepath.Join(s.vaultFileService.UploadDir(), file.UUID))
 			if err == nil {
