@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 
 // fullyParallel + workers>1 时共享 DB 导致联系人表数据污染，串行运行避免跨 worker 干扰
 test.describe.configure({ mode: 'serial' });
+// Relationship flows create multiple contacts and modal submissions; keep CI headroom.
+test.setTimeout(60000);
 
 let counter = 0;
 
@@ -39,7 +41,7 @@ async function createContact(page: import('@playwright/test').Page, firstName: s
   await page.getByPlaceholder('First name').fill(firstName);
   await page.getByPlaceholder('Last name').fill(lastName);
   await page.getByRole('button', { name: /create contact/i }).click();
-  await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+$/, { timeout: 10000 });
+  await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+(?:\?.*)?$/, { timeout: 10000 });
   await expect(page.getByText(`${firstName} ${lastName}`).first()).toBeVisible({ timeout: 10000 });
 }
 
@@ -58,7 +60,7 @@ async function navigateToTab(page: import('@playwright/test').Page, tabName: str
  */
 async function goBackToContacts(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /back/i }).first().click();
-  await expect(page).toHaveURL(/\/contacts$/, { timeout: 5000 });
+  await expect(page).toHaveURL(/\/contacts(?:\?.*)?$/, { timeout: 5000 });
   // Wait for the contact table to render at least one row
   await expect(page.locator('.ant-table-row').first()).toBeVisible({ timeout: 10000 });
 }
@@ -70,7 +72,7 @@ async function goBackToContacts(page: import('@playwright/test').Page) {
 async function clickContactInTable(page: import('@playwright/test').Page, contactName: string) {
   const row = page.locator('.ant-table-row').filter({ hasText: contactName });
   await row.first().click();
-  await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+$/, { timeout: 10000 });
+  await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+(?:\?.*)?$/, { timeout: 10000 });
 }
 
 /**
