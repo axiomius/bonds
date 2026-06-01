@@ -154,6 +154,56 @@ func TestDeleteContact(t *testing.T) {
 	}
 }
 
+func TestDeleteContact_FirstMetThroughHardDeleteSetsNull(t *testing.T) {
+	db := testutil.SetupTestDBWithFKConstraints(t)
+	cfg := testutil.TestJWTConfig()
+	authSvc := NewAuthService(db, cfg)
+	vaultSvc := NewVaultService(db)
+
+	resp, err := authSvc.Register(dto.RegisterRequest{
+		FirstName: "FirstMet",
+		LastName:  "User",
+		Email:     "first-met-delete@example.com",
+		Password:  "password123",
+	}, "en")
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+	vault, err := vaultSvc.CreateVault(resp.User.AccountID, resp.User.ID, dto.CreateVaultRequest{Name: "First Met Vault"}, "en")
+	if err != nil {
+		t.Fatalf("CreateVault failed: %v", err)
+	}
+
+	contactSvc := NewContactService(db)
+	alice, err := contactSvc.CreateContact(vault.ID, resp.User.ID, dto.CreateContactRequest{FirstName: "Alice"})
+	if err != nil {
+		t.Fatalf("Create Alice failed: %v", err)
+	}
+	bob, err := contactSvc.CreateContact(vault.ID, resp.User.ID, dto.CreateContactRequest{FirstName: "Bob"})
+	if err != nil {
+		t.Fatalf("Create Bob failed: %v", err)
+	}
+	if err := db.Model(&models.Contact{}).
+		Where("id = ?", alice.ID).
+		Update("first_met_through_contact_id", bob.ID).Error; err != nil {
+		t.Fatalf("Set first_met_through_contact_id failed: %v", err)
+	}
+
+	// Monica imports can create first_met_through self-references. Hard-delete
+	// paths must not be blocked by that optional historical pointer.
+	if err := db.Unscoped().Delete(&models.Contact{}, "id = ?", bob.ID).Error; err != nil {
+		t.Fatalf("Hard delete referenced contact failed: %v", err)
+	}
+
+	var reloaded models.Contact
+	if err := db.First(&reloaded, "id = ?", alice.ID).Error; err != nil {
+		t.Fatalf("Reload Alice failed: %v", err)
+	}
+	if reloaded.FirstMetThroughContactID != nil {
+		t.Fatalf("expected first_met_through_contact_id to be cleared, got %v", *reloaded.FirstMetThroughContactID)
+	}
+}
+
 func TestToggleArchive(t *testing.T) {
 	svc, vaultID, userID, _ := setupContactTest(t)
 
