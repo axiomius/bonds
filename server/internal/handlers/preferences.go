@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+
 	"github.com/labstack/echo/v4"
 	"github.com/naiba/bonds/internal/dto"
 	"github.com/naiba/bonds/internal/middleware"
@@ -58,6 +60,9 @@ func (h *PreferenceHandler) UpdateAll(c echo.Context) error {
 	}
 	prefs, err := h.preferenceService.UpdateAll(userID, req)
 	if err != nil {
+		if errors.Is(err, services.ErrInvalidNameOrder) || errors.Is(err, services.ErrUnsupportedLocale) || errors.Is(err, services.ErrInvalidWeekStart) {
+			return response.ValidationError(c, map[string]string{"validation": err.Error()})
+		}
 		return response.InternalError(c, "err.failed_to_update_preferences")
 	}
 	return response.OK(c, prefs)

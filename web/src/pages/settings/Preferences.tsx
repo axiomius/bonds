@@ -30,6 +30,11 @@ const dateFormats = [
   { value: "MMM D, YYYY", label: "Jan 15, 2026" },
 ];
 
+const weekStartOptions = [
+  { value: "sunday", labelKey: "settings.preferences.week_start_sunday" },
+  { value: "monday", labelKey: "settings.preferences.week_start_monday" },
+];
+
 // Pull the full IANA timezone list from the runtime rather than maintaining a
 // hardcoded subset — users in zones we forgot to enumerate (e.g. Africa/Cairo,
 // Pacific/Honolulu, half-hour offsets like Asia/Kolkata) can now pick their
@@ -241,6 +246,13 @@ export default function Preferences() {
             label={<span style={labelStyle}>{t("settings.preferences.date_format")}</span>}
           >
             <Select options={dateFormats} />
+          </Form.Item>
+
+          <Form.Item
+            name="week_start"
+            label={<span style={labelStyle}>{t("settings.preferences.week_start")}</span>}
+          >
+            <Select options={weekStartOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} />
           </Form.Item>
 
           <Divider style={{ margin: "8px 0 24px" }} />

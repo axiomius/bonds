@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import dayjs from "dayjs";
-import i18n from "@/i18n";
+import i18n, { applyDayjsWeekStart } from "@/i18n";
 
 // Switching i18next language must also flip dayjs.locale, otherwise
 // CalendarDatePicker's month names, useDateFormat outputs, and any
@@ -8,6 +8,7 @@ import i18n from "@/i18n";
 // the UI chrome is in zh/es.
 describe("dayjs locale follows i18next language", () => {
   afterEach(async () => {
+    applyDayjsWeekStart("sunday");
     await i18n.changeLanguage("en");
   });
 
@@ -40,5 +41,17 @@ describe("dayjs locale follows i18next language", () => {
     await i18n.changeLanguage("zh-CN");
     const monthName = dayjs("2026-01-15").format("MMMM");
     expect(monthName).toBe("一月");
+  });
+
+  it("applies the saved Monday week start to dayjs locale calculations", () => {
+    applyDayjsWeekStart("monday");
+
+    expect(dayjs("2026-01-15").startOf("week").format("YYYY-MM-DD")).toBe("2026-01-12");
+  });
+
+  it("keeps Sunday as the default week start", () => {
+    applyDayjsWeekStart("sunday");
+
+    expect(dayjs("2026-01-15").startOf("week").format("YYYY-MM-DD")).toBe("2026-01-11");
   });
 });

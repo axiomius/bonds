@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "@/api";
-import { normalizeLanguageCode } from "@/i18n";
+import { applyDayjsWeekStart, normalizeLanguageCode } from "@/i18n";
 import { useAuth } from "@/stores/auth";
 
 // Pull the persisted UI language from /api/settings/preferences and apply it
@@ -31,4 +31,8 @@ export function usePreferencesSync() {
       void i18n.changeLanguage(desired);
     }
   }, [data?.locale, i18n]);
+
+  useEffect(() => {
+    applyDayjsWeekStart(data?.week_start);
+  }, [data?.week_start]);
 }
