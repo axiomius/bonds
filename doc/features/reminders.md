@@ -1,6 +1,6 @@
 # Reminders
 
-Bonds has a built-in reminder system that notifies you about important dates and events via email or Telegram.
+Bonds has a built-in reminder system that notifies you about important dates and events via email or Shoutrrr-backed channels such as Telegram.
 
 ## Types
 
@@ -15,22 +15,24 @@ Bonds has a built-in reminder system that notifies you about important dates and
 
 1. **Create a reminder** on a contact — choose the date, time, type, and a label
 2. **The cron scheduler** runs every minute, scanning for due reminders
-3. **Notifications are sent** through your configured notification channels
+3. **Notifications are sent** through your configured notification channels at each channel's preferred send time
 4. **For recurring reminders**, the next occurrence is automatically scheduled based on the previous scheduled time (not current time, to prevent drift)
 
 ## Notification Channels
 
-Bonds supports two notification channels:
+Bonds supports email plus Shoutrrr-compatible notification channels:
 
 ### Email
 
 Configure SMTP settings in the admin panel. Email notifications are enabled by default when a user registers — a notification channel is automatically created with the user's email address.
 
-### Telegram
+### Shoutrrr / Telegram
 
-Set up a Telegram bot and configure the bot token in the admin panel. Users then link their Telegram chat ID to receive reminder notifications via the bot.
+Add a Shoutrrr URL in user notification settings, such as a Telegram URL (`telegram://token@telegram?channels=123456`). Shoutrrr channels are active immediately after creation and can use any supported Shoutrrr service.
 
-See [Telegram Notifications](/features/more#telegram-notifications) for setup details.
+Each channel has a **preferred send time**. New reminders, existing-reminder backfills, and recurring reminder reschedules use that local time. Empty or invalid values fall back to `09:00`.
+
+See [Shoutrrr / Telegram Notifications](/features/more#telegram-notifications) for setup details.
 
 ## Channel Reliability
 
