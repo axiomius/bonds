@@ -2,14 +2,70 @@ package database
 
 import (
 	"database/sql"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/naiba/bonds/internal/config"
 	"github.com/naiba/bonds/internal/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+func TestAutoMigrateSQLiteConnectPreservesForeignKeyEnforcementWithoutCreatingContactSelfForeignKey(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "bonds.db")
+	db, err := Connect(&config.DatabaseConfig{Driver: "sqlite", DSN: dbPath}, false)
+	if err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	if foreignKeysEnabled(t, db) != 1 {
+		t.Fatal("foreign_keys pragma should stay enabled for runtime SQLite enforcement")
+	}
+
+	createLegacyContactSchemaWithDependents(t, db)
+	seedLegacyContactSchemaWithDependentRows(t, db)
+
+	if err := AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	if foreignKeysEnabled(t, db) != 1 {
+		t.Fatal("foreign_keys pragma should remain enabled after AutoMigrate")
+	}
+
+	if hasContactSelfForeignKey(t, db) {
+		t.Fatal("contacts.first_met_through_contact_id should not have a self-referential foreign key in SQLite migrations")
+	}
+}
+
+func TestAutoMigrateSQLiteFreshSchemaKeepsCoreForeignKeys(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "bonds.db")
+	db, err := Connect(&config.DatabaseConfig{Driver: "sqlite", DSN: dbPath}, false)
+	if err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+	if err := AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	if foreignKeysEnabled(t, db) != 1 {
+		t.Fatal("foreign_keys pragma should stay enabled for runtime SQLite enforcement")
+	}
+	if !hasForeignKey(t, db, "vaults", "account_id", "accounts") {
+		t.Fatal("vaults.account_id should keep its SQLite foreign key")
+	}
+	if !hasForeignKey(t, db, "contacts", "vault_id", "vaults") {
+		t.Fatal("contacts.vault_id should keep its SQLite foreign key")
+	}
+	if !hasForeignKey(t, db, "notes", "contact_id", "contacts") {
+		t.Fatal("notes.contact_id should keep its SQLite foreign key")
+	}
+	if hasContactSelfForeignKey(t, db) {
+		t.Fatal("contacts.first_met_through_contact_id should not have a self-referential foreign key in SQLite migrations")
+	}
+}
 
 func TestAutoMigrateBackfillsLegacyContactTaskVaultID(t *testing.T) {
 	db := openMigrationTestDB(t)
@@ -250,6 +306,107 @@ func createContactTaskMigrationDependencies(t *testing.T, db *gorm.DB) {
 	if err := db.Migrator().CreateTable(&models.Account{}, &models.Vault{}, &models.Contact{}); err != nil {
 		t.Fatalf("create current account/vault/contact schema: %v", err)
 	}
+}
+
+func createLegacyContactSchemaWithDependents(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	statements := []string{
+		`CREATE TABLE accounts (
+			id text PRIMARY KEY,
+			created_at datetime,
+			updated_at datetime
+		)`,
+		`CREATE TABLE vaults (
+			id text PRIMARY KEY,
+			account_id text NOT NULL,
+			type text NOT NULL,
+			name text NOT NULL,
+			created_at datetime,
+			updated_at datetime,
+			FOREIGN KEY(account_id) REFERENCES accounts(id)
+		)`,
+		`CREATE TABLE contacts (
+			id text PRIMARY KEY,
+			vault_id text NOT NULL,
+			created_at datetime,
+			updated_at datetime,
+			FOREIGN KEY(vault_id) REFERENCES vaults(id)
+		)`,
+		`CREATE TABLE notes (
+			id integer PRIMARY KEY AUTOINCREMENT,
+			contact_id text NOT NULL,
+			vault_id text NOT NULL,
+			body text NOT NULL,
+			created_at datetime,
+			updated_at datetime,
+			FOREIGN KEY(contact_id) REFERENCES contacts(id),
+			FOREIGN KEY(vault_id) REFERENCES vaults(id)
+		)`,
+	}
+	for _, statement := range statements {
+		if err := db.Exec(statement).Error; err != nil {
+			t.Fatalf("create legacy schema: %v", err)
+		}
+	}
+}
+
+func seedLegacyContactSchemaWithDependentRows(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	if err := db.Exec(`INSERT INTO accounts (id, created_at, updated_at) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, "account-1").Error; err != nil {
+		t.Fatalf("insert account: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO vaults (id, account_id, type, name, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, "vault-1", "account-1", "private", "Legacy Vault").Error; err != nil {
+		t.Fatalf("insert vault: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO contacts (id, vault_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, "contact-1", "vault-1").Error; err != nil {
+		t.Fatalf("insert contact: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO notes (contact_id, vault_id, body, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, "contact-1", "vault-1", "Legacy note").Error; err != nil {
+		t.Fatalf("insert note: %v", err)
+	}
+}
+
+func foreignKeysEnabled(t *testing.T, db *gorm.DB) int {
+	t.Helper()
+	var enabled int
+	if err := db.Raw(`PRAGMA foreign_keys`).Scan(&enabled).Error; err != nil {
+		t.Fatalf("read foreign_keys pragma: %v", err)
+	}
+	return enabled
+}
+
+func hasContactSelfForeignKey(t *testing.T, db *gorm.DB) bool {
+	t.Helper()
+	var rows []struct {
+		Table string `gorm:"column:table"`
+		From  string `gorm:"column:from"`
+	}
+	if err := db.Raw(`PRAGMA foreign_key_list(contacts)`).Scan(&rows).Error; err != nil {
+		t.Fatalf("read contacts foreign keys: %v", err)
+	}
+	for _, row := range rows {
+		if row.Table == "contacts" && row.From == "first_met_through_contact_id" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasForeignKey(t *testing.T, db *gorm.DB, tableName, fromColumn, targetTable string) bool {
+	t.Helper()
+	var rows []struct {
+		Table string `gorm:"column:table"`
+		From  string `gorm:"column:from"`
+	}
+	if err := db.Raw(`PRAGMA foreign_key_list(` + tableName + `)`).Scan(&rows).Error; err != nil {
+		t.Fatalf("read %s foreign keys: %v", tableName, err)
+	}
+	for _, row := range rows {
+		if row.Table == targetTable && row.From == fromColumn {
+			return true
+		}
+	}
+	return false
 }
 
 func seedContactTaskVaultAndContact(t *testing.T, db *gorm.DB, accountID, vaultID, contactID string) {

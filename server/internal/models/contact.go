@@ -49,8 +49,8 @@ type Contact struct {
 	Pronoun  *Pronoun  `json:"pronoun,omitempty" gorm:"foreignKey:PronounID"`
 	Template *Template `json:"template,omitempty" gorm:"foreignKey:TemplateID"`
 	Company  *Company  `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
-	// Optional Monica import pointer; delete of the referenced contact must clear it instead of blocking cascades.
-	FirstMetThrough     *Contact               `json:"first_met_through,omitempty" gorm:"foreignKey:FirstMetThroughContactID;references:ID;constraint:OnDelete:SET NULL"`
+	// Optional self-reference is cleaned in BeforeDelete to avoid SQLite table rebuild failures.
+	FirstMetThrough     *Contact               `json:"first_met_through,omitempty" gorm:"foreignKey:FirstMetThroughContactID;references:ID;constraint:-"`
 	File                *File                  `json:"file,omitempty" gorm:"foreignKey:FileID"`
 	Religion            *Religion              `json:"religion,omitempty" gorm:"foreignKey:ReligionID"`
 	Labels              []Label                `json:"labels,omitempty" gorm:"many2many:contact_label"`
@@ -78,4 +78,13 @@ func (c *Contact) BeforeCreate(tx *gorm.DB) error {
 		c.ID = uuid.New().String()
 	}
 	return nil
+}
+
+func (c *Contact) BeforeDelete(tx *gorm.DB) error {
+	if c.ID == "" || !tx.Statement.Unscoped {
+		return nil
+	}
+	return tx.Model(&Contact{}).
+		Where("first_met_through_contact_id = ?", c.ID).
+		Update("first_met_through_contact_id", nil).Error
 }

@@ -189,9 +189,13 @@ func TestDeleteContact_FirstMetThroughHardDeleteSetsNull(t *testing.T) {
 		t.Fatalf("Set first_met_through_contact_id failed: %v", err)
 	}
 
+	var bobModel models.Contact
+	if err := db.First(&bobModel, "id = ?", bob.ID).Error; err != nil {
+		t.Fatalf("Load Bob failed: %v", err)
+	}
 	// Monica imports can create first_met_through self-references. Hard-delete
 	// paths must not be blocked by that optional historical pointer.
-	if err := db.Unscoped().Delete(&models.Contact{}, "id = ?", bob.ID).Error; err != nil {
+	if err := db.Unscoped().Delete(&bobModel).Error; err != nil {
 		t.Fatalf("Hard delete referenced contact failed: %v", err)
 	}
 
