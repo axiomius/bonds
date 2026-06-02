@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Table, Button, Typography, Input, Tag, Space, App, Upload, theme, Select, Checkbox, Popover } from "antd";
 import {
   PlusOutlined,
@@ -31,6 +31,31 @@ const SORT_MAP: Record<string, string> = {
 
 const COLUMNS_STORAGE_KEY = "bonds_contact_list_columns";
 const DEFAULT_VISIBLE_COLUMNS = ["name", "nickname", "status", "updated_at"];
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = ["10", "20", "50", "100"];
+
+function parsePositiveInteger(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePage(value: string | null): number {
+  return parsePositiveInteger(value) ?? DEFAULT_PAGE;
+}
+
+function parsePageSize(value: string | null): number {
+  const parsed = parsePositiveInteger(value);
+  return parsed && PAGE_SIZE_OPTIONS.includes(String(parsed)) ? parsed : DEFAULT_PAGE_SIZE;
+}
+
+function buildPaginationSearch(params: URLSearchParams, page: number, pageSize: number): string {
+  const next = new URLSearchParams(params);
+  next.set("page", String(page));
+  next.set("per_page", String(pageSize));
+  return `?${next.toString()}`;
+}
 
 function loadVisibleColumns(): string[] {
   try {
@@ -46,14 +71,16 @@ function loadVisibleColumns(): string[] {
 export default function ContactList() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const vaultId = id!;
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<string>("name");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [labelFilter, setLabelFilter] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [visibleColumns, setVisibleColumns] = useState<string[]>(loadVisibleColumns);
+  const currentPage = parsePage(searchParams.get("page"));
+  const pageSize = parsePageSize(searchParams.get("per_page"));
+  const contactListSearch = buildPaginationSearch(searchParams, currentPage, pageSize);
   const { message } = App.useApp();
   const { t } = useTranslation();
   const { token } = theme.useToken();
@@ -99,6 +126,17 @@ export default function ContactList() {
   const contacts = contactsResponse?.contacts ?? [];
   const paginationMeta = contactsResponse?.meta;
 
+  const updatePaginationParams = (page: number, size: number, replace = false) => {
+    const nextPage = Number.isInteger(page) && page > 0 ? page : DEFAULT_PAGE;
+    const nextPageSize = PAGE_SIZE_OPTIONS.includes(String(size)) ? size : DEFAULT_PAGE_SIZE;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("page", String(nextPage));
+    nextParams.set("per_page", String(nextPageSize));
+    setSearchParams(nextParams, { replace });
+  };
+
+  const resetToFirstPage = () => updatePaginationParams(DEFAULT_PAGE, pageSize, true);
+
   const sortMutation = useMutation({
       mutationFn: (data: { sort_by: string; sort_order: "asc" | "desc" }) => 
         api.contacts.contactsSortUpdate(String(vaultId), data),
@@ -109,14 +147,14 @@ export default function ContactList() {
 
   const handleSortChange = (value: string) => {
       setSortBy(value);
-      setCurrentPage(1);
+      resetToFirstPage();
       // Save user preference as side effect
       sortMutation.mutate({ sort_by: value, sort_order: "asc" });
   };
 
   const handleSearch = (val: string) => {
       setSearch(val);
-      setCurrentPage(1);
+      resetToFirstPage();
   };
 
   const handleColumnToggle = (key: string, checked: boolean) => {
@@ -374,7 +412,7 @@ export default function ContactList() {
         <Select
             placeholder={t("contact.list.filter_label")}
             value={labelFilter}
-            onChange={(v) => { setLabelFilter(v); setCurrentPage(1); }}
+            onChange={(v) => { setLabelFilter(v ?? null); resetToFirstPage(); }}
             style={{ width: 200 }}
             allowClear
         >
@@ -387,7 +425,7 @@ export default function ContactList() {
             data-testid="status-filter"
             placeholder={t("contact.list.filter_status")}
             value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
+            onChange={(v) => { setStatusFilter(v); resetToFirstPage(); }}
             style={{ width: 160 }}
         >
             <Option value="active">{t("contact.list.filter_active")}</Option>
@@ -405,7 +443,7 @@ export default function ContactList() {
         loading={isLoading}
         onRow={(record) => ({
           onClick: () =>
-            navigate(`/vaults/${vaultId}/contacts/${record.id}`),
+            navigate(`/vaults/${vaultId}/contacts/${record.id}${contactListSearch}`),
           style: { cursor: "pointer" },
         })}
         style={{ borderRadius: token.borderRadius }}
@@ -413,7 +451,8 @@ export default function ContactList() {
           current: currentPage,
           pageSize: pageSize,
           total: paginationMeta?.total ?? contacts.length,
-          onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+          pageSizeOptions: PAGE_SIZE_OPTIONS,
+          onChange: (page, size) => updatePaginationParams(page, size),
           showSizeChanger: true,
           showTotal: (total) => t("contact.list.total", { count: total }),
         }}

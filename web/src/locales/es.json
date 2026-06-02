@@ -197,7 +197,13 @@
       "life_event_summary": "Resumen",
       "life_event_description": "Descripción",
       "life_event_added": "Evento de vida añadido",
-      "life_event_date": "Fecha"
+      "life_event_date": "Fecha",
+      "catch_up_title": "Ponerse al día",
+      "no_catch_up": "Nadie necesita ponerse al día",
+      "catch_up_due": "{{days}} días de retraso",
+      "catch_up_last_talked": "Última charla {{date}}",
+      "catch_up_mark": "Hecho",
+      "catch_up_marked": "Puesta al día registrada"
     },
     "calendar": {
       "title": "Calendario",
@@ -519,6 +525,19 @@
     "needs_verification": {
       "badge": "Por verificar",
       "field_label": "Necesita verificación (revisar más tarde)"
+    },
+    "catch_up": {
+      "title": "Mantener el contacto",
+      "description": "Define cada cuánto quieres ponerte al día con esta persona.",
+      "last_talked_to": "Última charla",
+      "last_talked_to_help": "Se usa para calcular la próxima fecha de contacto.",
+      "frequency_days": "Ponerse al día cada (días)",
+      "frequency_days_help": "Déjalo vacío para desactivar las sugerencias.",
+      "last_contact_summary": "Última charla {{date}}",
+      "frequency_summary": "Cada {{days}} días",
+      "next_due_summary": "Próxima fecha {{date}}",
+      "mark_caught_up": "Marcar al día",
+      "marked_caught_up": "Puesta al día registrada"
     },
     "create": {
       "title": "Añadir un contacto",
@@ -990,7 +1009,10 @@
       "edit_channel": "Editar canal",
       "edit_modal_title": "Editar canal de notificación",
       "updated": "Canal actualizado",
-      "content_changed_reverify": "Destino cambiado — los canales de correo requieren volver a verificar."
+      "content_changed_reverify": "Destino cambiado — los canales de correo requieren volver a verificar.",
+      "preferred_time": "Hora preferida de envío",
+      "preferred_time_help": "Los recordatorios diarios se programan a esta hora local.",
+      "preferred_time_display": "Recordatorios diarios a las {{time}}"
     },
     "personalize": {
       "title": "Personalizar",

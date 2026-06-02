@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { formatContactName, formatContactInitials, useNameOrder } from "@/utils/nameFormat";
 import { useDateFormat, formatDate } from "@/utils/dateFormat";
-import { useParams, useNavigate } from "react-router-dom";
+import { dateInputToTimestamp, formatDateOnly, timestampToDateInput } from "@/utils/dateOnlyInput";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   Typography,
@@ -15,6 +16,7 @@ import {
   Modal,
   Form,
   Input,
+  InputNumber,
   Select,
   Upload,
   theme,
@@ -34,6 +36,7 @@ import {
   ExportOutlined,
   MoreOutlined,
   LayoutOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { api, httpClient } from "@/api";
@@ -63,6 +66,33 @@ import GroupsModule from "./modules/GroupsModule";
 import ContactSummaryCard from "./modules/ContactSummaryCard";
 
 const { Title, Text } = Typography;
+
+function buildContactListUrl(vaultId: string, search: string): string {
+  const incomingParams = new URLSearchParams(search);
+  const listParams = new URLSearchParams();
+  const page = incomingParams.get("page");
+  const perPage = incomingParams.get("per_page");
+
+  if (page) listParams.set("page", page);
+  if (perPage) listParams.set("per_page", perPage);
+
+  const query = listParams.toString();
+  return `/vaults/${vaultId}/contacts${query ? `?${query}` : ""}`;
+}
+
+type ContactEditFormValues = Omit<UpdateContactRequest, "last_talked_to"> & {
+  last_talked_to?: string;
+};
+
+function buildUpdateContactRequest(values: ContactEditFormValues): UpdateContactRequest {
+  const request: UpdateContactRequest = {
+    ...values,
+    last_talked_to: dateInputToTimestamp(values.last_talked_to),
+  };
+  if (!request.last_talked_to) delete request.last_talked_to;
+  if (request.stay_in_touch_frequency_days == null) delete request.stay_in_touch_frequency_days;
+  return request;
+}
 
 // Module type → component mapping for dynamic tab rendering.
 // Modules like avatar, contact_names, family_summary, gender_pronoun, company,
@@ -96,6 +126,7 @@ export default function ContactDetail() {
   const vaultId = id!;
   const cId = contactId!;
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const { t } = useTranslation();
@@ -110,6 +141,7 @@ export default function ContactDetail() {
   const [editForm] = Form.useForm();
   const [moveForm] = Form.useForm();
   const [templateForm] = Form.useForm();
+  const contactListUrl = buildContactListUrl(vaultId, location.search);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["vaults", vaultId, "contacts", cId],
@@ -155,8 +187,33 @@ export default function ContactDetail() {
       queryClient.invalidateQueries({
         queryKey: ["vaults", vaultId, "contacts", cId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["vaults", vaultId, "contacts"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["vaults", vaultId, "catchUp"],
+      });
       message.success(t("contact.detail.edit_success"));
       setIsEditModalOpen(false);
+    },
+    onError: (err: APIError) => {
+      message.error(err.message || t("common.error"));
+    },
+  });
+
+  const markCaughtUpMutation = useMutation({
+    mutationFn: () => api.contacts.contactsCatchUpCreate(String(vaultId), String(cId)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["vaults", vaultId, "contacts", cId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["vaults", vaultId, "contacts"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["vaults", vaultId, "catchUp"],
+      });
+      message.success(t("contact.catch_up.marked_caught_up"));
     },
     onError: (err: APIError) => {
       message.error(err.message || t("common.error"));
@@ -185,7 +242,7 @@ export default function ContactDetail() {
         queryKey: ["vaults", vaultId, "contacts"],
       });
       message.success(t("contact.detail.deleted_success"));
-      navigate(`/vaults/${vaultId}/contacts`);
+      navigate(contactListUrl);
     },
     onError: (err: APIError) => {
       message.error(err.message || t("contact.detail.delete_failed"));
@@ -292,6 +349,49 @@ export default function ContactDetail() {
     contact.nickname && { label: t("contact.detail.nickname"), value: `\u201C${contact.nickname}\u201D` },
     contact.maiden_name && { label: t("contact.detail.maiden_name"), value: contact.maiden_name },
   ].filter(Boolean) as { label: string; value: string }[];
+
+  const stayInTouchSummary = [
+    contact.last_talked_to && t("contact.catch_up.last_contact_summary", {
+      date: formatDateOnly(contact.last_talked_to, dateFormats),
+    }),
+    contact.stay_in_touch_frequency_days && t("contact.catch_up.frequency_summary", {
+      days: contact.stay_in_touch_frequency_days,
+    }),
+    contact.stay_in_touch_trigger_date && t("contact.catch_up.next_due_summary", {
+      date: formatDateOnly(contact.stay_in_touch_trigger_date, dateFormats),
+    }),
+  ].filter(Boolean).join(" · ");
+
+  const stayInTouchPanel = stayInTouchSummary ? (
+    <div
+      style={{
+        padding: "10px 12px",
+        borderRadius: token.borderRadius,
+        background: token.colorFillQuaternary,
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 12,
+        alignItems: "center",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <Text strong style={{ fontSize: 13, display: "block" }}>
+          {t("contact.catch_up.title")}
+        </Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {stayInTouchSummary}
+        </Text>
+      </div>
+      <Button
+        size="small"
+        icon={<CheckCircleOutlined />}
+        loading={markCaughtUpMutation.isPending}
+        onClick={() => markCaughtUpMutation.mutate()}
+      >
+        {t("contact.catch_up.mark_caught_up")}
+      </Button>
+    </div>
+  ) : null;
 
   const overviewCard = (
     <Card size="small" styles={{ body: { padding: "12px 16px" } }}>
@@ -461,7 +561,7 @@ export default function ContactDetail() {
       <Button
         type="text"
         icon={<ArrowLeftOutlined />}
-        onClick={() => navigate(`/vaults/${vaultId}/contacts`)}
+        onClick={() => navigate(contactListUrl)}
         style={{ marginBottom: 16 }}
       >
         {t("contact.detail.back")}
@@ -554,6 +654,8 @@ export default function ContactDetail() {
                 maiden_name: contact.maiden_name,
                 gender_id: contact.gender_id,
                 pronoun_id: contact.pronoun_id,
+                last_talked_to: timestampToDateInput(contact.last_talked_to),
+                stay_in_touch_frequency_days: contact.stay_in_touch_frequency_days,
                 needs_verification: contact.needs_verification,
               });
               setIsEditModalOpen(true);
@@ -641,6 +743,12 @@ export default function ContactDetail() {
         </div>
       </Card>
 
+      {stayInTouchPanel && (
+        <div style={{ marginBottom: 16 }}>
+          {stayInTouchPanel}
+        </div>
+      )}
+
       <div style={{ marginBottom: 16 }}>
         <ContactSummaryCard vaultId={vaultId} contactId={cId} contact={contact} readOnly={viewMode === "read"} />
       </div>
@@ -685,7 +793,7 @@ export default function ContactDetail() {
         <Form
           form={editForm}
           layout="vertical"
-          onFinish={(values) => updateContactMutation.mutate(values)}
+          onFinish={(values: ContactEditFormValues) => updateContactMutation.mutate(buildUpdateContactRequest(values))}
         >
           <div style={{ display: "flex", gap: 16 }}>
             <Form.Item
@@ -755,6 +863,40 @@ export default function ContactDetail() {
           <Form.Item name="needs_verification" valuePropName="checked" style={{ marginBottom: 16 }}>
             <Checkbox>{t("contact.needs_verification.field_label")}</Checkbox>
           </Form.Item>
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 16,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              background: token.colorFillQuaternary,
+            }}
+          >
+            <Text strong style={{ display: "block", marginBottom: 4 }}>
+              {t("contact.catch_up.title")}
+            </Text>
+            <Text type="secondary" style={{ display: "block", fontSize: 13, marginBottom: 12 }}>
+              {t("contact.catch_up.description")}
+            </Text>
+            <div style={{ display: "flex", gap: 16 }}>
+              <Form.Item
+                name="last_talked_to"
+                label={t("contact.catch_up.last_talked_to")}
+                extra={t("contact.catch_up.last_talked_to_help")}
+                style={{ flex: 1 }}
+              >
+                <Input type="date" />
+              </Form.Item>
+              <Form.Item
+                name="stay_in_touch_frequency_days"
+                label={t("contact.catch_up.frequency_days")}
+                extra={t("contact.catch_up.frequency_days_help")}
+                style={{ flex: 1 }}
+              >
+                <InputNumber min={1} precision={0} style={{ width: "100%" }} />
+              </Form.Item>
+            </div>
+          </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <Button onClick={() => setIsEditModalOpen(false)}>
               {t("common.cancel")}
@@ -862,8 +1004,7 @@ function AvatarImageLoader({
   url: string; 
   updatedAt: string;
   initials: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  token: any;
+  token: ReturnType<typeof theme.useToken>["token"];
   onUpload: (file: File) => void;
   onDelete: () => void;
   isUploading: boolean;
@@ -985,7 +1126,7 @@ function GenderPronounSelect({ entity, vaultId, placeholder, ...props }: {
   value?: number;
   onChange?: (value: number | undefined) => void;
 }) {
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading } = useQuery<PersonalizeItem[]>({
     queryKey: ["vaults", vaultId, "personalize", entity],
     queryFn: async () => {
       const res = await api.personalize.personalizeDetail(entity);
@@ -999,8 +1140,7 @@ function GenderPronounSelect({ entity, vaultId, placeholder, ...props }: {
       loading={isLoading}
       allowClear
       placeholder={placeholder}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      options={(items as any[]).map((item) => ({ label: item.label, value: item.id }))}
+      options={items.map((item) => ({ label: item.label, value: item.id }))}
     />
   );
 }

@@ -17,14 +17,15 @@ func (UserVault) TableName() string {
 }
 
 type ContactVaultUser struct {
-	ID            uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	ContactID     string    `json:"contact_id" gorm:"type:text;not null;index"`
-	VaultID       string    `json:"vault_id" gorm:"type:text;not null;index"`
-	UserID        string    `json:"user_id" gorm:"type:text;not null;index"`
-	NumberOfViews int       `json:"number_of_views" gorm:"not null"`
-	IsFavorite    bool      `json:"is_favorite" gorm:"default:false"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID              uint       `json:"id" gorm:"primaryKey;autoIncrement"`
+	ContactID       string     `json:"contact_id" gorm:"type:text;not null;index"`
+	VaultID         string     `json:"vault_id" gorm:"type:text;not null;index"`
+	UserID          string     `json:"user_id" gorm:"type:text;not null;index"`
+	NumberOfViews   int        `json:"number_of_views" gorm:"not null"`
+	IsFavorite      bool       `json:"is_favorite" gorm:"default:false"`
+	LastConsultedAt *time.Time `json:"last_consulted_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 func (ContactVaultUser) TableName() string {

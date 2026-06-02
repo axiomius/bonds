@@ -1,13 +1,28 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Form, Input, Button, Typography, App, theme, Select, Checkbox } from "antd";
+import { Card, Form, Input, Button, Typography, App, theme, Select, Checkbox, InputNumber } from "antd";
 import { ArrowLeftOutlined, UserOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api";
 import type { CreateContactRequest, APIError } from "@/api";
 import { useTranslation } from "react-i18next";
+import { dateInputToTimestamp } from "@/utils/dateOnlyInput";
 
 const { Title, Text } = Typography;
+
+type ContactCreateFormValues = Omit<CreateContactRequest, "last_talked_to"> & {
+  last_talked_to?: string;
+};
+
+function buildCreateContactRequest(values: ContactCreateFormValues): CreateContactRequest {
+  const request: CreateContactRequest = {
+    ...values,
+    last_talked_to: dateInputToTimestamp(values.last_talked_to),
+  };
+  if (!request.last_talked_to) delete request.last_talked_to;
+  if (request.stay_in_touch_frequency_days == null) delete request.stay_in_touch_frequency_days;
+  return request;
+}
 
 export default function ContactCreate() {
   const { id } = useParams<{ id: string }>();
@@ -40,9 +55,9 @@ export default function ContactCreate() {
     },
   });
 
-  function onFinish(values: CreateContactRequest) {
+  function onFinish(values: ContactCreateFormValues) {
     setLoading(true);
-    mutation.mutate(values);
+    mutation.mutate(buildCreateContactRequest(values));
   }
 
   return (
@@ -154,6 +169,41 @@ export default function ContactCreate() {
           <Form.Item name="needs_verification" valuePropName="checked" style={{ marginBottom: 8 }}>
             <Checkbox>{t("contact.needs_verification.field_label")}</Checkbox>
           </Form.Item>
+
+          <div
+            style={{
+              margin: "16px 0",
+              padding: 16,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              background: token.colorFillQuaternary,
+            }}
+          >
+            <Text strong style={{ display: "block", marginBottom: 4 }}>
+              {t("contact.catch_up.title")}
+            </Text>
+            <Text type="secondary" style={{ display: "block", fontSize: 13, marginBottom: 12 }}>
+              {t("contact.catch_up.description")}
+            </Text>
+            <div style={{ display: "flex", gap: 16 }}>
+              <Form.Item
+                name="last_talked_to"
+                label={t("contact.catch_up.last_talked_to")}
+                extra={t("contact.catch_up.last_talked_to_help")}
+                style={{ flex: 1 }}
+              >
+                <Input type="date" />
+              </Form.Item>
+              <Form.Item
+                name="stay_in_touch_frequency_days"
+                label={t("contact.catch_up.frequency_days")}
+                extra={t("contact.catch_up.frequency_days_help")}
+                style={{ flex: 1 }}
+              >
+                <InputNumber min={1} precision={0} style={{ width: "100%" }} />
+              </Form.Item>
+            </div>
+          </div>
 
           <Form.Item style={{ marginBottom: 0, marginTop: 8, textAlign: "right" }}>
             <Button

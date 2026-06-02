@@ -31,9 +31,8 @@ func Connect(cfg *config.DatabaseConfig, debug bool) (*gorm.DB, error) {
 	}
 	usePrepareStmt := cfg.Driver != "sqlite"
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger:                                   logger.Default.LogMode(logLevel),
-		DisableForeignKeyConstraintWhenMigrating: false,
-		PrepareStmt:                              usePrepareStmt,
+		Logger:      logger.Default.LogMode(logLevel),
+		PrepareStmt: usePrepareStmt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -53,10 +52,22 @@ func Connect(cfg *config.DatabaseConfig, debug bool) (*gorm.DB, error) {
 }
 
 func AutoMigrate(db *gorm.DB) error {
+	existingSQLiteSchema := db.Dialector.Name() == "sqlite" && db.Migrator().HasTable(&models.Account{})
 	if err := migrateLegacyContactTasks(db); err != nil {
 		return err
 	}
+	if existingSQLiteSchema {
+		return autoMigrateExistingSQLiteSchema(db)
+	}
 	return db.AutoMigrate(AllModels()...)
+}
+
+func autoMigrateExistingSQLiteSchema(db *gorm.DB) error {
+	// SQLite rebuilds existing tables when adding constraints, which can fail
+	// once dependent rows exist. Fresh schemas still create FK DDL normally.
+	migrator := db.Session(&gorm.Session{NewDB: true})
+	migrator.Config.DisableForeignKeyConstraintWhenMigrating = true
+	return migrator.AutoMigrate(AllModels()...)
 }
 
 func migrateLegacyContactTasks(db *gorm.DB) error {

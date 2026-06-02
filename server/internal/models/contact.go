@@ -8,41 +8,50 @@ import (
 )
 
 type Contact struct {
-	ID                    string         `json:"id" gorm:"primaryKey;type:text"`
-	VaultID               string         `json:"vault_id" gorm:"type:text;not null;index:idx_contact_vault"`
-	GenderID              *uint          `json:"gender_id" gorm:"index"`
-	PronounID             *uint          `json:"pronoun_id" gorm:"index"`
-	TemplateID            *uint          `json:"template_id" gorm:"index"`
-	CompanyID             *uint          `json:"company_id" gorm:"index"`
-	FileID                *uint          `json:"file_id" gorm:"index"`
+	ID                       string         `json:"id" gorm:"primaryKey;type:text"`
+	VaultID                  string         `json:"vault_id" gorm:"type:text;not null;index:idx_contact_vault"`
+	GenderID                 *uint          `json:"gender_id" gorm:"index"`
+	PronounID                *uint          `json:"pronoun_id" gorm:"index"`
+	TemplateID               *uint          `json:"template_id" gorm:"index"`
+	CompanyID                *uint          `json:"company_id" gorm:"index"`
+	FileID                   *uint          `json:"file_id" gorm:"index"`
 	OptimizedAvatarFileID *uint          `json:"optimized_avatar_file_id" gorm:"index"`
-	ReligionID            *uint          `json:"religion_id" gorm:"index"`
-	FirstName             *string        `json:"first_name"`
-	MiddleName            *string        `json:"middle_name"`
-	LastName              *string        `json:"last_name"`
-	Nickname              *string        `json:"nickname"`
-	MaidenName            *string        `json:"maiden_name"`
-	Suffix                *string        `json:"suffix"`
-	Prefix                *string        `json:"prefix"`
-	JobPosition           *string        `json:"job_position"`
-	CanBeDeleted          bool           `json:"can_be_deleted" gorm:"default:true"`
-	ShowQuickFacts        bool           `json:"show_quick_facts" gorm:"default:false"`
-	Listed                bool           `json:"listed" gorm:"default:true"`
-	NeedsVerification     bool           `json:"needs_verification" gorm:"default:false;index"`
-	Vcard                 *string        `json:"vcard" gorm:"type:text"`
-	DistantUUID           *string        `json:"distant_uuid" gorm:"size:256"`
-	DistantEtag           *string        `json:"distant_etag" gorm:"size:256"`
-	DistantURI            *string        `json:"distant_uri" gorm:"size:2096"`
-	LastUpdatedAt         *time.Time     `json:"last_updated_at"`
-	DeletedAt             gorm.DeletedAt `json:"deleted_at" gorm:"index"`
-	CreatedAt             time.Time      `json:"created_at"`
-	UpdatedAt             time.Time      `json:"updated_at"`
+	ReligionID               *uint          `json:"religion_id" gorm:"index"`
+	FirstName                *string        `json:"first_name"`
+	MiddleName               *string        `json:"middle_name"`
+	LastName                 *string        `json:"last_name"`
+	Nickname                 *string        `json:"nickname"`
+	MaidenName               *string        `json:"maiden_name"`
+	Suffix                   *string        `json:"suffix"`
+	Prefix                   *string        `json:"prefix"`
+	JobPosition              *string        `json:"job_position"`
+	Description              *string        `json:"description" gorm:"type:text"`
+	FoodPreferences          *string        `json:"food_preferences" gorm:"type:text"`
+	LastTalkedTo             *time.Time     `json:"last_talked_to"`
+	FirstMetAt               *time.Time     `json:"first_met_at"`
+	FirstMetThroughContactID *string        `json:"first_met_through_contact_id" gorm:"type:text;index"`
+	StayInTouchFrequencyDays *int           `json:"stay_in_touch_frequency_days"`
+	StayInTouchTriggerDate   *time.Time     `json:"stay_in_touch_trigger_date"`
+	CanBeDeleted             bool           `json:"can_be_deleted" gorm:"default:true"`
+	ShowQuickFacts           bool           `json:"show_quick_facts" gorm:"default:false"`
+	Listed                   bool           `json:"listed" gorm:"default:true"`
+	NeedsVerification        bool           `json:"needs_verification" gorm:"default:false;index"`
+	Vcard                    *string        `json:"vcard" gorm:"type:text"`
+	DistantUUID              *string        `json:"distant_uuid" gorm:"size:256"`
+	DistantEtag              *string        `json:"distant_etag" gorm:"size:256"`
+	DistantURI               *string        `json:"distant_uri" gorm:"size:2096"`
+	LastUpdatedAt            *time.Time     `json:"last_updated_at"`
+	DeletedAt                gorm.DeletedAt `json:"deleted_at" gorm:"index"`
+	CreatedAt                time.Time      `json:"created_at"`
+	UpdatedAt                time.Time      `json:"updated_at"`
 
-	Vault               Vault                  `json:"vault,omitempty" gorm:"foreignKey:VaultID"`
-	Gender              *Gender                `json:"gender,omitempty" gorm:"foreignKey:GenderID"`
-	Pronoun             *Pronoun               `json:"pronoun,omitempty" gorm:"foreignKey:PronounID"`
-	Template            *Template              `json:"template,omitempty" gorm:"foreignKey:TemplateID"`
-	Company             *Company               `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
+	Vault    Vault     `json:"vault,omitempty" gorm:"foreignKey:VaultID"`
+	Gender   *Gender   `json:"gender,omitempty" gorm:"foreignKey:GenderID"`
+	Pronoun  *Pronoun  `json:"pronoun,omitempty" gorm:"foreignKey:PronounID"`
+	Template *Template `json:"template,omitempty" gorm:"foreignKey:TemplateID"`
+	Company  *Company  `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
+	// Optional self-reference is cleaned in BeforeDelete to avoid SQLite table rebuild failures.
+	FirstMetThrough     *Contact               `json:"first_met_through,omitempty" gorm:"foreignKey:FirstMetThroughContactID;references:ID;constraint:-"`
 	File                *File                  `json:"file,omitempty" gorm:"foreignKey:FileID"`
 	Religion            *Religion              `json:"religion,omitempty" gorm:"foreignKey:ReligionID"`
 	Labels              []Label                `json:"labels,omitempty" gorm:"many2many:contact_label"`
@@ -70,4 +79,13 @@ func (c *Contact) BeforeCreate(tx *gorm.DB) error {
 		c.ID = uuid.New().String()
 	}
 	return nil
+}
+
+func (c *Contact) BeforeDelete(tx *gorm.DB) error {
+	if c.ID == "" || !tx.Statement.Unscoped {
+		return nil
+	}
+	return tx.Model(&Contact{}).
+		Where("first_met_through_contact_id = ?", c.ID).
+		Update("first_met_through_contact_id", nil).Error
 }

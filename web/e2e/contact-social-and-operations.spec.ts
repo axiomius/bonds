@@ -36,7 +36,7 @@ async function createContact(page: import('@playwright/test').Page, firstName: s
   await page.getByPlaceholder('First name').fill(firstName);
   await page.getByPlaceholder('Last name').fill(lastName);
   await page.getByRole('button', { name: /create contact/i }).click();
-  await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+$/, { timeout: 10000 });
+  await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+(?:\?.*)?$/, { timeout: 10000 });
   await expect(page.getByText(`${firstName} ${lastName}`).first()).toBeVisible({ timeout: 10000 });
 }
 
@@ -77,15 +77,15 @@ test.describe('Contact Modules - Relationships', () => {
     await createContact(page, 'RelAlice', 'Smith');
 
     await page.getByRole('button', { name: /back/i }).first().click();
-    await expect(page).toHaveURL(/\/contacts$/, { timeout: 5000 });
+    await expect(page).toHaveURL(/\/contacts(?:\?.*)?$/, { timeout: 5000 });
 
     await createContact(page, 'RelBob', 'Jones');
 
     await page.getByRole('button', { name: /back/i }).first().click();
-    await expect(page).toHaveURL(/\/contacts$/, { timeout: 5000 });
+    await expect(page).toHaveURL(/\/contacts(?:\?.*)?$/, { timeout: 5000 });
 
     await page.getByText('RelAlice Smith').click();
-    await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+(?:\?.*)?$/, { timeout: 10000 });
 
     await navigateToTab(page, 'Social');
 
@@ -176,7 +176,7 @@ test.describe('Contact Operations', () => {
     const resp = await deleteResp;
     expect(resp.status()).toBeLessThan(400);
 
-    await expect(page).toHaveURL(/\/contacts$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/contacts(?:\?.*)?$/, { timeout: 10000 });
     await expect(page.getByText('DeleteMe User')).not.toBeVisible({ timeout: 5000 });
   });
 });
@@ -447,16 +447,16 @@ test.describe('Contact Modules - Relationship Manage Types', () => {
     await createContact(page, 'RelMgmt', 'Alice');
 
     await page.getByRole('button', { name: /back/i }).first().click();
-    await expect(page).toHaveURL(/\/contacts$/, { timeout: 5000 });
+    await expect(page).toHaveURL(/\/contacts(?:\?.*)?$/, { timeout: 5000 });
 
     await createContact(page, 'RelMgmt', 'Bob');
 
     await page.getByRole('button', { name: /back/i }).first().click();
-    await expect(page).toHaveURL(/\/contacts$/, { timeout: 5000 });
+    await expect(page).toHaveURL(/\/contacts(?:\?.*)?$/, { timeout: 5000 });
 
     // Go to Alice's page
     await page.getByText('RelMgmt Alice').click();
-    await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+(?:\?.*)?$/, { timeout: 10000 });
 
     // Navigate to Social tab
     await navigateToTab(page, 'Social');
@@ -486,7 +486,7 @@ test.describe('Relationship Contact Name Navigation', () => {
     await createContact(page, 'Parent', 'Navigator');
 
     await page.getByRole('button', { name: /back/i }).first().click();
-    await expect(page).toHaveURL(/\/contacts$/, { timeout: 5000 });
+    await expect(page).toHaveURL(/\/contacts(?:\?.*)?$/, { timeout: 5000 });
     await expect(page.locator('.ant-table-row').first()).toBeVisible({ timeout: 10000 });
 
     await createContact(page, 'Child', 'Navigator');
@@ -529,7 +529,7 @@ test.describe('Relationship Contact Name Navigation', () => {
 
     // Click the link and verify navigation to Parent's contact detail page
     await relatedContactLink.click();
-    await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/contacts\/[a-f0-9-]+(?:\?.*)?$/, { timeout: 10000 });
     await expect(page.getByText('Parent Navigator').first()).toBeVisible({ timeout: 10000 });
   });
 });

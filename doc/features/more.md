@@ -35,16 +35,17 @@ Geocoding runs asynchronously when an address is created. If it fails, the addre
 
 Configure the provider and API key in the admin panel.
 
-## Telegram Notifications {#telegram-notifications}
+## Shoutrrr / Telegram Notifications {#telegram-notifications}
 
-Receive reminder notifications via Telegram:
+Receive reminder notifications through Shoutrrr-compatible URLs, including Telegram:
 
 ### Setup
 
 1. Create a Telegram bot via [@BotFather](https://t.me/BotFather).
-2. Copy the bot token.
-3. Enter it in the admin panel under Telegram settings.
-4. In your user settings, add a Telegram notification channel with your chat ID.
+2. Get the destination chat ID.
+3. In **Settings > Notifications**, add a Shoutrrr notification channel.
+4. Use a Telegram Shoutrrr URL such as `telegram://token@telegram?channels=123456`.
+5. Choose the preferred send time for this channel.
 
 ### Getting Your Chat ID
 
@@ -53,6 +54,8 @@ Send a message to your bot, then visit:
 https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
 ```
 Look for the `chat.id` field in the response.
+
+The preferred send time is used for new reminders, backfilled existing reminders, and future recurring reminder schedules. If it is left blank or invalid, Bonds falls back to `09:00`.
 
 ## Internationalization (i18n)
 

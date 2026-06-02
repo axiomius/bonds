@@ -197,7 +197,13 @@
       "life_event_summary": "Summary",
       "life_event_description": "Description",
       "life_event_added": "Life event added",
-      "life_event_date": "Date"
+      "life_event_date": "Date",
+      "catch_up_title": "Catch-Up",
+      "no_catch_up": "No one is due for a catch-up",
+      "catch_up_due": "{{days}} days overdue",
+      "catch_up_last_talked": "Last talked {{date}}",
+      "catch_up_mark": "Done",
+      "catch_up_marked": "Catch-up recorded"
     },
     "calendar": {
       "title": "Calendar",
@@ -519,6 +525,19 @@
     "needs_verification": {
       "badge": "To verify",
       "field_label": "Needs verification (flag for later review)"
+    },
+    "catch_up": {
+      "title": "Stay in touch",
+      "description": "Set how often you want to catch up with this person.",
+      "last_talked_to": "Last talked to",
+      "last_talked_to_help": "Used to calculate the next catch-up date.",
+      "frequency_days": "Catch-up every (days)",
+      "frequency_days_help": "Leave empty to disable catch-up prompts.",
+      "last_contact_summary": "Last talked {{date}}",
+      "frequency_summary": "Every {{days}} days",
+      "next_due_summary": "Next due {{date}}",
+      "mark_caught_up": "Mark caught up",
+      "marked_caught_up": "Catch-up recorded"
     },
     "create": {
       "title": "Add a contact",
@@ -990,7 +1009,10 @@
       "edit_channel": "Edit Channel",
       "edit_modal_title": "Edit Notification Channel",
       "updated": "Channel updated",
-      "content_changed_reverify": "Destination changed — email channels require re-verification."
+      "content_changed_reverify": "Destination changed — email channels require re-verification.",
+      "preferred_time": "Preferred send time",
+      "preferred_time_help": "Daily reminder notifications are scheduled at this local time.",
+      "preferred_time_display": "Daily reminders at {{time}}"
     },
     "personalize": {
       "title": "Personalize",
