@@ -520,6 +520,19 @@
       "badge": "Por verificar",
       "field_label": "Necesita verificación (revisar más tarde)"
     },
+    "catch_up": {
+      "title": "Mantener el contacto",
+      "description": "Define cada cuánto quieres ponerte al día con esta persona.",
+      "last_talked_to": "Última charla",
+      "last_talked_to_help": "Se usa para calcular la próxima fecha de contacto.",
+      "frequency_days": "Ponerse al día cada (días)",
+      "frequency_days_help": "Déjalo vacío para desactivar las sugerencias.",
+      "last_contact_summary": "Última charla {{date}}",
+      "frequency_summary": "Cada {{days}} días",
+      "next_due_summary": "Próxima fecha {{date}}",
+      "mark_caught_up": "Marcar al día",
+      "marked_caught_up": "Puesta al día registrada"
+    },
     "create": {
       "title": "Añadir un contacto",
       "prefix_label": "Prefijo",

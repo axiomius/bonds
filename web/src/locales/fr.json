@@ -520,6 +520,19 @@
       "badge": "A vérifier",
       "field_label": "Vérification nécessaire (indicateur pour examen ultérieur)"
     },
+    "catch_up": {
+      "title": "Garder le contact",
+      "description": "Définissez la fréquence à laquelle vous voulez reprendre contact avec cette personne.",
+      "last_talked_to": "Dernier échange",
+      "last_talked_to_help": "Utilisé pour calculer la prochaine date de reprise de contact.",
+      "frequency_days": "Reprendre contact tous les (jours)",
+      "frequency_days_help": "Laissez vide pour désactiver les suggestions.",
+      "last_contact_summary": "Dernier échange {{date}}",
+      "frequency_summary": "Tous les {{days}} jours",
+      "next_due_summary": "Prochaine date {{date}}",
+      "mark_caught_up": "Marquer comme fait",
+      "marked_caught_up": "Prise de nouvelles enregistrée"
+    },
     "create": {
       "title": "Ajouter un contact",
       "prefix_label": "Préfixe",

@@ -520,6 +520,19 @@
       "badge": "To verify",
       "field_label": "Needs verification (flag for later review)"
     },
+    "catch_up": {
+      "title": "Stay in touch",
+      "description": "Set how often you want to catch up with this person.",
+      "last_talked_to": "Last talked to",
+      "last_talked_to_help": "Used to calculate the next catch-up date.",
+      "frequency_days": "Catch-up every (days)",
+      "frequency_days_help": "Leave empty to disable catch-up prompts.",
+      "last_contact_summary": "Last talked {{date}}",
+      "frequency_summary": "Every {{days}} days",
+      "next_due_summary": "Next due {{date}}",
+      "mark_caught_up": "Mark caught up",
+      "marked_caught_up": "Catch-up recorded"
+    },
     "create": {
       "title": "Add a contact",
       "prefix_label": "Prefix",

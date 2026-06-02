@@ -520,6 +520,19 @@
       "badge": "待核实",
       "field_label": "标记为待核实（稍后再确认）"
     },
+    "catch_up": {
+      "title": "保持联系",
+      "description": "设置你希望多久联系一次这位联系人。",
+      "last_talked_to": "上次联系时间",
+      "last_talked_to_help": "用于计算下一次联系日期。",
+      "frequency_days": "联系间隔（天）",
+      "frequency_days_help": "留空则不生成联系提示。",
+      "last_contact_summary": "上次联系 {{date}}",
+      "frequency_summary": "每 {{days}} 天",
+      "next_due_summary": "下次应在 {{date}}",
+      "mark_caught_up": "标记已联系",
+      "marked_caught_up": "已记录本次联系"
+    },
     "create": {
       "title": "添加联系人",
       "prefix_label": "前缀",

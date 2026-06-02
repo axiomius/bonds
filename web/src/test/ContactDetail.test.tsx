@@ -102,6 +102,7 @@ vi.mock("@/api", () => ({
       contactsMoveCreate: vi.fn(),
       contactsTemplateUpdate: vi.fn(),
       contactsTabsList: vi.fn(),
+      contactsCatchUpCreate: vi.fn(),
     },
     vaults: { vaultsList: vi.fn() },
     personalize: { personalizeDetail: vi.fn() },
@@ -119,6 +120,7 @@ vi.mock("@/api", () => ({
 }));
 
 const mockContactQuery = vi.fn();
+const mockMutate = vi.fn();
 const defaultQuery = { data: undefined, isLoading: false };
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: Record<string, unknown>) => {
@@ -128,7 +130,7 @@ vi.mock("@tanstack/react-query", () => ({
     }
     return defaultQuery;
   },
-  useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useMutation: () => ({ mutate: mockMutate, isPending: false }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
@@ -168,6 +170,7 @@ const mockContact = {
 describe("ContactDetail", () => {
   beforeEach(() => {
     mockContactQuery.mockReset();
+    mockMutate.mockReset();
   });
 
   it("renders loading spinner when loading", () => {
@@ -223,6 +226,49 @@ describe("ContactDetail", () => {
     
     await waitFor(() => {
       expect(screen.getByTestId("location-probe")).toHaveTextContent("/vaults/1/contacts?page=3&per_page=50");
+    });
+  });
+
+  it("renders stay-in-touch summary and mark caught up action", async () => {
+    const user = userEvent.setup();
+    mockContactQuery.mockReturnValue({
+      data: {
+        ...mockContact,
+        last_talked_to: "2026-01-02T00:00:00Z",
+        stay_in_touch_frequency_days: 30,
+        stay_in_touch_trigger_date: "2026-02-01T00:00:00Z",
+      },
+      isLoading: false,
+    });
+
+    renderContactDetail();
+
+    expect(screen.getByText("Stay in touch")).toBeInTheDocument();
+    expect(screen.getByText(/Last talked Jan 2, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Every 30 days/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /mark caught up/i }));
+
+    expect(mockMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefills stay-in-touch edit dates without local timezone drift", async () => {
+    const user = userEvent.setup();
+    mockContactQuery.mockReturnValue({
+      data: {
+        ...mockContact,
+        last_talked_to: "2026-01-02T00:00:00Z",
+        stay_in_touch_frequency_days: 30,
+      },
+      isLoading: false,
+    });
+
+    renderContactDetail();
+    await user.click(screen.getByRole("button", { name: /edit/i }));
+
+    await waitFor(() => {
+      const dateInput = document.querySelector<HTMLInputElement>('input[type="date"]');
+      expect(dateInput?.value).toBe("2026-01-02");
     });
   });
 });
